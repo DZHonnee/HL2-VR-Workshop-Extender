@@ -58,4 +58,4 @@ For detailed descriptions and troubleshooting, use the "Help" section within the
 
 2. **Build using PyInstaller:**
 ```bash
-pyinstaller --onedir --windowed --name "HL2VR_Workshop_Extender" --add-data "AnniversaryContent;AnniversaryContent" --add-data "icon.ico;." --icon=icon.ico main.py
+   pyinstaller --onedir --windowed --name "HL2VR_Workshop_Extender" --add-data "AnniversaryContent;AnniversaryContent" --add-data "icon.ico;." --icon=icon.ico main.py
