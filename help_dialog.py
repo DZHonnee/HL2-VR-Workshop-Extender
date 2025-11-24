@@ -193,14 +193,18 @@ class HelpDialog(QDialog):
             Учтите, что аддоны появляются в списке аддонов Half-Life 2 только если после подписки вы зайдете в игру, либо если вы подписываетесь с запущенной игрой.
             <br><b>(!)</b> Эта функция не встраивает аддоны-карты, которые отображаются в HL2 как отдельная кампания. 
             Встраивайте их как отдельный аддон или создайте из своих аддонов коллекцию и встройте её.
+            <br>P.S. во время загрузки в логах можно заметить, что неоторые аддоны загружаются в неправильном порядке (например, 1/5, 3/5, 5/5, 4/5, 2/5).
+            Это нормально, так как происходит многопоточная обработка, итоговый список все равно будет создан в правильном порядке, как в списке HL2.
             </p>
 
             <h3>2. Коллекции мастерской</h3>
-            <p>Встраивает аддоны из коллекции в том порядке, в котором они в ней находятся.</p>
+            <p>Встраивает аддоны из коллекции в ОБРАТНОМ порядке, потому что именно так после загрузки коллекции они отображаются в HL2. Создатели коллекций составляют их именно
+            с учетом обратного порядка (ниже позиция - выше приоритет).
+            </p>
             
             <h3>3. Отдельные аддоны мастерской</h3>
             <p>Встраивает отдельный аддон из мастерской.</p>
-            
+            <p>Иногда программа может ругаться на ссылки не смотря на то, что они правильные. Попробуйте еще несколько раз нажать на встраивание или перезапустите программу.</p>
             <h2>Настройки встраивания</h2>
             <ul>
                 <li><strong>Проверять наличие файлов</strong> - аддоны с отсутствующими файлами будут пропускаться</li>
@@ -208,7 +212,7 @@ class HelpDialog(QDialog):
                 <li><strong>Синхронизировать с Эпизодами</strong> - сразу дублировать список аддонов в Episode 1 VR и Episode 2 VR при каких-либо изменениях</li>
             </ul>
 
-            <p>Иногда программа может ругаться на ссылки не смотря на то, что они правильные. Попробуйте еще несколько раз нажать на встраивание или перезапустите программу.</p>
+            
             """
         else:
             return """
@@ -221,14 +225,17 @@ class HelpDialog(QDialog):
             Note that addons only appear in the Half-Life 2 addon list if you enter the game after subscribing, or if you subscribe with the game running.
             <br><b>(!)</b> This function doesn't mount map addons that appear in HL2 as separate campaigns. 
             Mount them as individual addons or create a collection from your addons and mount it.
+            <br>P.S. During the loading process, you may notice in the logs that some addons are loaded in the wrong order (e.g., 1/5, 3/5, 5/5, 4/5, 2/5).
+            This is normal behavior, as multi-threaded processing is occurring. The final list will still be created in the correct order, matching the HL2 list.
             </p>
 
             <h3>2. Workshop collections</h3>
-            <p>Mounts addons from a collection in the order they appear in the collection.</p>
+            <p>Mounts addons from a collection in REVERSE order because this is exactly how they appear in HL2 after the collection is loaded. 
+            Collection creators assemble their collections specifically with reverse order in mind (lower position - higher priority).</p>
             
             <h3>3. Individual workshop addons</h3>
             <p>Mounts an individual addon from the workshop.</p>
-            
+            <p>Occasionally, the app may error on valid links. Retry the 'Mount' operation a few times or restart the app.</p>
             <h2>Mounting settings</h2>
             <ul>
                 <li><strong>Validate files</strong> - addons with missing files will be skipped</li>
@@ -236,7 +243,7 @@ class HelpDialog(QDialog):
                 <li><strong>Sync with Episodes</strong> - immediately duplicate the addon list in Episode 1 VR and Episode 2 VR when any changes are made</li>
             </ul>
 
-            <p>Occasionally, the app may error on valid links. Retry the 'Mount' operation a few times or restart the app.</p>
+            
             """
     
     def get_management_html(self):
@@ -263,6 +270,7 @@ class HelpDialog(QDialog):
             <h2>Дополнительные функции</h2>
             <ul>
                 <li><b>Обновить список (⟳)</b> - перезагрузить список аддонов (заново прочитать gameinfo.txt)</li>
+                <li><b>Обратный порядок аддонов (⇵)</b> - говорит само за себя</li>
                 <li><b>Проверить файлы</b> - при наличии аддонов с несуществующими файлами программа предложит удалить их из списка</li>
                 <li><b>Проверить карты</b> - см. вкладку "<b>Карты</b>"</li>
                 <li><b>Повторить синхронизацию (⟳)</b> - синхронизировать нынешний список с Эпизодами</li>
@@ -292,6 +300,7 @@ class HelpDialog(QDialog):
             <h2>Additional functions</h2>
             <ul>
                 <li><b>Refresh list (⟳)</b> - reload the addon list (re-read gameinfo.txt)</li>
+                <li><b>Reverse addons order (⇵)</b> - self-explanatory</li>
                 <li><b>Check files</b> - if addons with non-existent files are found, the program will offer to remove them from the list</li>
                 <li><b>Check maps</b> - see "<b>Maps</b>" tab</li>
                 <li><b>Resync (⟳)</b> - synchronize current list with Episodes</li>

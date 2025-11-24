@@ -869,6 +869,27 @@ class MainWindow(QMainWindow):
         self.refresh_btn.clicked.connect(self.load_addons_list)
         refresh_container.addWidget(self.refresh_btn)
 
+        # Reverse addons order button
+        self.reverse_btn = QPushButton("⇵")
+        self.reverse_btn.setToolTip(tr("Reverse addons order"))
+        self.reverse_btn.setFixedSize(30, 30)
+        self.reverse_btn.setStyleSheet("""
+            QPushButton {
+                font-size: 16px;
+                border: 1px solid #cccccc;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QPushButton:hover {
+                background-color: #f0f0f0;
+            }
+            QPushButton:pressed {
+                background-color: #e0e0e0;
+            }
+        """)
+        self.reverse_btn.clicked.connect(self.reverse_addons_order)
+        refresh_container.addWidget(self.reverse_btn)
+
         # Adjustable padding for the refresh button
         #refresh_container.addSpacing(0)
 
@@ -1182,6 +1203,38 @@ class MainWindow(QMainWindow):
         except Exception as e:
             log.error(f"Error saving addons list: {str(e)}")
             QMessageBox.critical(self, tr("Error"), f"Failed to save file:\n{str(e)}")
+
+    def reverse_addons_order(self):
+        """Reverses the order of addons in the list"""
+        hl2vr_path = self.hl2vr_entry.text().strip()
+        
+        if not hl2vr_path:
+            QMessageBox.critical(self, tr("Error"), tr("First select Half-Life 2 VR folder"))
+            return
+        
+        if not self.current_addons:
+            QMessageBox.information(self, tr("Information"), tr("No addons to reverse"))
+            return
+        
+        gameinfo_path = os.path.join(hl2vr_path, "hlvr", "gameinfo.txt")
+        
+        # Reverse order using addon_manager
+        success, message = addon_manager.reverse_addons_order(gameinfo_path)
+        
+        if success:
+            # Update local list
+            self.current_addons.reverse()
+            self.fast_table_update()
+            
+            # Sync with episodes
+            sync_success, sync_message = self.sync_episodes_with_main()
+            
+            if not sync_success:
+                log.warning(tr("Addons reversed but episode sync failed: {}").format(sync_message))
+
+        else:
+            log.error(tr("Error reversing addons: ") + message)
+            QMessageBox.critical(self, tr("Error"), message)
 
     def load_addons_list_from_file(self):
         """Loads addons list from file and replaces current one"""

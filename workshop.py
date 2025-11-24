@@ -79,6 +79,9 @@ def get_collection_addons(collection_url):
             title = title_element.get_text(strip=True) if title_element else tr("Unknown title")
             addons.append((addon_id, title))
         
+        # REVERSE THE ORDER OF ADDONS
+        addons.reverse()
+
         log.info(tr("Got {} addons from collection").format(len(addons)))
         return addons
         

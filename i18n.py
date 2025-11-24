@@ -545,6 +545,10 @@ class Translator(QObject):
 "Copying essential VR files to custom (ep2vr)": "Копирование важных VR файлов в custom (ep2vr)",
 "Essential VR files prioritized via custom folder": "Важные VR файлы приоритезированы через папку custom",
 
+"Reverse addons order": "Обратный порядок аддонов",
+"No addons to reverse": "Список аддонов пуст",
+"Addons order reversed": "Порядок аддонов изменен на обратный",
+
             }
             
         except Exception as e:

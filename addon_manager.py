@@ -6,6 +6,8 @@ import shutil
 from logger import log
 import concurrent.futures
 from i18n import tr, translator
+import gameinfo
+
 
 def read_addons_from_gameinfo(gameinfo_path):
     """
@@ -589,7 +591,7 @@ def prepare_addons_from_workshop_txt(hl2vr_path, hl2_path, check_files=True):
         
         gameinfo_path = os.path.join(hl2vr_path, "hlvr", "gameinfo.txt")
         
-        # MULTITHREADED PROCESSING - get addon titles in parallel
+        # MULTITHREADED PROCESSING - get addon titles in parallel BUT PRESERVE ORDER
         unique_addons = []
         failed_addons = []
         
@@ -604,34 +606,53 @@ def prepare_addons_from_workshop_txt(hl2vr_path, hl2_path, check_files=True):
             except Exception as e:
                 return ('error', addon_id, str(e))
         
-        # Use ThreadPoolExecutor for parallel requests
+        # Use ThreadPoolExecutor for parallel requests BUT PRESERVE ORDER
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            # Start all tasks
-            future_to_id = {executor.submit(fetch_addon_info, addon_id): addon_id for addon_id in addon_ids}
+            # Submit all tasks and store futures with their original index
+            future_to_index = {}
+            for index, addon_id in enumerate(addon_ids):
+                future = executor.submit(fetch_addon_info, addon_id)
+                future_to_index[future] = index
             
-            # Process results as they complete
-            for i, future in enumerate(concurrent.futures.as_completed(future_to_id), 1):
-                addon_id = future_to_id[future]
+            # Create a list to store results in original order
+            results = [None] * len(addon_ids)
+            
+            # Process results as they complete, but store in correct position
+            for future in concurrent.futures.as_completed(future_to_index):
+                index = future_to_index[future]
+                addon_id = addon_ids[index]
+                
                 try:
                     result_type, result_id, result_data = future.result()
                     if result_type == 'success':
-                        log.info(tr("Loaded ({}/{}): {}").format(i, len(addon_ids), result_data))
-                        unique_addons.append((result_id, result_data))
+                        log.info(tr("Loaded ({}/{}): {}").format(index + 1, len(addon_ids), result_data))
+                        results[index] = ('success', result_id, result_data)
                     elif result_type == 'failed':
-                        log.warning(tr("✗ Failed to load ({}/{}): ID {}").format(i, len(addon_ids), result_id))
-                        failed_addons.append(result_id)
+                        log.warning(tr("✗ Failed to load ({}/{}): ID {}").format(index + 1, len(addon_ids), result_id))
+                        results[index] = ('failed', result_id, None)
                     else:
-                        log.error(tr("✗ Error loading ({}/{}): ID {} - {}").format(i, len(addon_ids), result_id, result_data))
-                        failed_addons.append(result_id)
+                        log.error(tr("✗ Error loading ({}/{}): ID {} - {}").format(index + 1, len(addon_ids), result_id, result_data))
+                        results[index] = ('error', result_id, result_data)
                 except Exception as e:
-                    log.error(tr("✗ Unexpected error ({}/{}): ID {} - {}").format(i, len(addon_ids), addon_id, str(e)))
-                    failed_addons.append(addon_id)
+                    log.error(tr("✗ Unexpected error ({}/{}): ID {} - {}").format(index + 1, len(addon_ids), addon_id, str(e)))
+                    results[index] = ('error', addon_id, str(e))
+        
+        # Process results in original order
+        for result in results:
+            if not result:
+                continue
+            result_type, result_id, result_data = result
+            if result_type == 'success':
+                unique_addons.append((result_id, result_data))
+            else:
+                failed_addons.append(result_id)
         
         if not unique_addons:
             return False, None, tr("Failed to get information about installed addons.")
         
         log.info(tr("Successfully processed {} out of {} addons").format(len(unique_addons), len(addon_ids)))
 
+        # Continue with the rest of the function unchanged...
         # Check duplicates
         existing_ids = {addon['id'] for addon in read_addons_from_gameinfo(gameinfo_path)}
         filtered_addons = []
@@ -1038,3 +1059,31 @@ def clear_extracted_maps(workshop_path, gameinfo_path):
     except Exception as e:
         log.error(f"Error clearing maps: {str(e)}")
         return False, f"Error clearing maps: {str(e)}"
+    
+def reverse_addons_order(gameinfo_path):
+    """
+    Reverses the order of addons in gameinfo.txt
+    Returns tuple (success, message)
+    """
+    try:
+        # Read current addons
+        current_addons = read_addons_from_gameinfo(gameinfo_path)
+        if not current_addons:
+            return False, tr("No addons to reverse")
+        
+        # Reverse the list
+        reversed_addons = list(reversed(current_addons))
+        
+        # Update gameinfo.txt with reversed order
+        addons_with_paths = [(addon['path'], addon['title']) for addon in reversed_addons]
+        success, message = gameinfo.update_gameinfo_order(gameinfo_path, addons_with_paths)
+        
+        if success:
+            log.info(tr("Addons order reversed"))
+            return True, tr("Addons order reversed")
+        else:
+            return False, message
+            
+    except Exception as e:
+        log.error(f"Error reversing addons order: {str(e)}")
+        return False, f"Error reversing addons order: {str(e)}"
