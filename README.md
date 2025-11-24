@@ -49,3 +49,13 @@ Workshop Extender can also upgrade HL2:VR to the Anniversary Update by modifying
 ## Support
 
 For detailed descriptions and troubleshooting, use the "Help" section within the program interface.
+
+### Building from Source
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+
+2. **Build using PyInstaller:**
+   ```bash
+   pyinstaller --onedir --windowed --name "HL2VR_Workshop_Extender" --add-data "AnniversaryContent;AnniversaryContent" --add-data "icon.ico;." --icon=icon.ico main.py
