@@ -57,5 +57,5 @@ For detailed descriptions and troubleshooting, use the "Help" section within the
    pip install -r requirements.txt
 
 2. **Build using PyInstaller:**
-```bash
+   ```bash
    pyinstaller --onedir --windowed --name "HL2VR_Workshop_Extender" --add-data "AnniversaryContent;AnniversaryContent" --add-data "icon.ico;." --icon=icon.ico main.py
