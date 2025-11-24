@@ -4,6 +4,8 @@ A tool for mounting mods from Half-Life 2 workshop into Half-Life 2: VR Mod.
 
 This project was mostly vibecoded, since I'm not a programming enthusiast, so the code can be messy in places. Still, it took me a month of active work and an actual effort to understand all the caveats and make this a full-fledged tool that serves its purpose as smoothly as possible.
 
+![Interface Screenshot](image.jpg)
+
 ## How It Works
 
 The Workshop Extender doesn't download anything - it simply directs the game to use your existing workshop content as in-game assets.
