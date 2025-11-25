@@ -32,12 +32,12 @@ The tool doesn't download anything, but mounts already downloaded Steam addons. 
 1. **Set Paths** - Specify your HL2:VR and Half-Life 2 folder locations
 2. **Choose Method**:
    - **Mount Installed** - Use your list of installed addons from HL2
-   - **From Collection** - Paste a Steam workshop collection URL
-   - **Single Addon** - Paste an individual addon URL
+   - **Mount Collection** - Paste a Steam workshop collection URL
+   - **Mount Addon** - Paste an individual addon URL
 3. **Manage** - Use the interface to reorder, remove, or verify addons
 
 ### Map Addons
-Due to some caveats with mounting maps, this tool has functionality of detecting and extracting map addons to make them work.
+Due to some caveats with mounting maps, this tool has functionality of detecting and extracting map addons to make them work properly.
 
 ### Anniversary Update
 Workshop Extender can also upgrade HL2:VR to the Anniversary Update by modifying some game files.
