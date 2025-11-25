@@ -10,7 +10,6 @@ This project was mostly vibecoded, since I'm not a programming enthusiast, so th
 
 The tool doesn't download anything, but mounts already downloaded Steam addons. This process works as follows:
 
-**The process:**
 1. The tool retrieves addon IDs either from their Steam page or from workshop.txt (HL2's addon list file) 
 2. Uses these IDs to locate addon files in the Half-Life 2 workshop folder `(*\steamapps\workshop\content\220)`
 3. Inserts these paths into Half-Life 2 VR's `gameinfo.txt` file between special markers, instructing the game to use this content 
