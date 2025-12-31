@@ -1,0 +1,37 @@
+# Создаем новый .gitignore
+cat > .gitignore << EOF
+# IDE
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+addonmounter/
+
+# Build artifacts
+build/
+dist/
+*.spec
+
+# Development tools
+alt_vpk_extractor/
+aniversary_gameinfos/
+debug_pages/
+other/
+
+# Images and assets
+*.jpg
+*.png
+*.xcf
+
+# Configuration
+config.json
+
+# Keep these
+!icon.ico
+!requirements.txt
+EOF

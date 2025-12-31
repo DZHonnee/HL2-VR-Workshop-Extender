@@ -21,7 +21,6 @@ import subprocess
 from help_dialog import HelpDialog
 
 
-
 class AddonWorker(QThread):
     """Addons processing thread"""
     prepared = pyqtSignal(bool, object, str)
@@ -85,6 +84,7 @@ class WorkshopTxtWorker(QThread):
     prepared = pyqtSignal(bool, object, str)
     finished = pyqtSignal(bool, str)
     progress = pyqtSignal(str)
+    progress_value = pyqtSignal(int)
     
     def __init__(self, hl2vr_path, hl2_path, check_files=True, execute=False, prepared_data=None):
         super().__init__()
@@ -93,28 +93,54 @@ class WorkshopTxtWorker(QThread):
         self.check_files = check_files
         self.execute = execute
         self.prepared_data = prepared_data
+        self._is_cancelled = False
+    
+    def cancel(self):
+        """Cancel the operation"""
+        self._is_cancelled = True
     
     def run(self):
             try:
                 if not self.execute:
                     # PREPARATION MODE - only get data for dialog
                     self.progress.emit(tr("Preparing data..."))
+                    self.progress_value.emit(0)
+                    
+                    # Function to update progress
+                    def update_progress(current, total):
+                        if total > 0:
+                            percent = int((current / total) * 100)
+                            self.progress_value.emit(percent)
+                    
+                    # Function to check cancellation
+                    def check_cancel():
+                        return self._is_cancelled
                     
                     success, data, error_message = addon_manager.prepare_addons_from_workshop_txt(
-                        self.hl2vr_path, self.hl2_path, self.check_files
+                        self.hl2vr_path, self.hl2_path, self.check_files, 
+                        check_cancel=check_cancel, progress_callback=update_progress
                     )
+                    
+                    # Check if cancelled
+                    if self._is_cancelled:
+                        self.prepared.emit(False, None, tr("Operation cancelled by user"))
+                        return
                     
                     self.prepared.emit(success, data, error_message)
                     
                 else:
                     # EXECUTION MODE - actual addon mounting
                     self.progress.emit(tr("Mounting addons..."))
+                    self.progress_value.emit(0)
                     
                     # Use prepared data
                     success, message = gameinfo.update_gameinfo(
                         self.prepared_data['gameinfo_path'], 
                         self.prepared_data['addons_with_paths']
                     )
+                    
+                    # Set progress to 100% on completion
+                    self.progress_value.emit(100)
                     
                     if success:
                         final_message = tr("Installed addons successfully processed!") + f"\n{message}"
@@ -792,7 +818,6 @@ class MainWindow(QMainWindow):
         self.addons_table.setColumnCount(4)
         self.addons_table.setHorizontalHeaderLabels(["", tr("Name"), tr("Link"), tr("Folder")])
         
-        # Стиль для таблицы
         self.addons_table.setStyleSheet("""
             QTableWidget {
                 outline: none;
@@ -1433,7 +1458,19 @@ class MainWindow(QMainWindow):
         
         # Immediately disable button
         self.embed_installed_btn.setEnabled(False)
-        self.status_label.setText(tr("Preparing data..."))
+        
+        # Create progress dialog
+        self.workshop_txt_progress = QProgressDialog(tr("Loading addons information..."), tr("Cancel"), 0, 100, self)
+        self.workshop_txt_progress.setWindowTitle(tr("Mounting installed addons"))
+        self.workshop_txt_progress.setWindowModality(Qt.WindowModal)
+        self.workshop_txt_progress.setWindowFlags(self.workshop_txt_progress.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        
+        self.workshop_txt_progress.setFixedSize(600, 100)
+        self.workshop_txt_progress.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.workshop_txt_progress.setWindowFlags(self.workshop_txt_progress.windowFlags() | Qt.MSWindowsFixedSizeDialogHint)
+        
+        # Set initial value
+        self.workshop_txt_progress.setValue(0)
         
         # Get file check checkbox state
         check_files = self.check_files_checkbox.isChecked()
@@ -1445,9 +1482,19 @@ class MainWindow(QMainWindow):
             check_files, 
             execute=False  # Only preparation, not execution
         )
+        
+        # Connect signals
         self.preparation_worker.prepared.connect(self.on_workshop_txt_prepared)
         self.preparation_worker.progress.connect(self.status_label.setText)
+        self.preparation_worker.progress_value.connect(self.workshop_txt_progress.setValue)
+        
+        # Connect progress dialog cancellation
+        self.workshop_txt_progress.canceled.connect(self.preparation_worker.cancel)
+        
         self.preparation_worker.start()
+        
+        # Show progress dialog
+        self.workshop_txt_progress.show()
 
     def embed_addons(self, url, is_collection=True):
         """Main function for mounting addons (collections or single) - NEW VERSION"""
@@ -1613,15 +1660,29 @@ class MainWindow(QMainWindow):
 
     def on_workshop_txt_prepared(self, success, data, error_message):
         """Handler for completion of data preparation"""
+        
+        # Close progress dialog
+        if hasattr(self, 'workshop_txt_progress'):
+            self.workshop_txt_progress.close()
+            del self.workshop_txt_progress
+        
         # Enable button temporarily for dialog display
         self.embed_installed_btn.setEnabled(True)
+        self.embed_collection_btn.setEnabled(True)
+        self.embed_single_btn.setEnabled(True)
         
         if not success:
-            # Handle preparation error
             self.status_label.setText(tr("❌ Error preparing data"))
             log.error(tr("Error preparing data from workshop.txt: ") + error_message)
+            
+            # Check if operation was cancelled
+            if error_message and (tr("cancelled") in error_message.lower() or tr("Cancelled") in error_message):
+                log.info(tr("Mounting cancelled by user"))
+                return
+                
             QMessageBox.critical(self, tr("Error"), error_message)
             return
+        
         
         # Check if there are any addons to mount
         if not data['unique_addons']:
@@ -1939,186 +2000,221 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, tr("Error"), message)
 
     def check_maps(self, new_addons_count=None, specific_addon=None):
-        """
-        Universal map checking function
-        """
-        hl2vr_path = self.hl2vr_entry.text().strip()
-        
-        if not hl2vr_path:
-            QMessageBox.critical(self, tr("Error"), tr("Select Half-Life 2 VR folder"))
-            return
-        
-        if not self.current_addons:
-            QMessageBox.information(self, tr("Information"), tr("No addons to check."))
-            return
-        
-        # DETERMINE WHICH ADDONS TO CHECK
-        if specific_addon:
-            addons_to_check = [specific_addon]
-            check_type = "single"
-            log.info(tr("Checking map for addon: {}").format(specific_addon['title']))
-        elif new_addons_count is not None:
-            addons_to_check = self.current_addons[:new_addons_count]
-            check_type = "auto"
-            log.info(tr("Auto map check for {} new addons").format(new_addons_count))
-        else:
-            addons_to_check = self.current_addons
-            check_type = "manual"
-            log.info(tr("Manual map check for {} addons").format(len(addons_to_check)))
-        
-        gameinfo_path = os.path.join(hl2vr_path, "hlvr", "gameinfo.txt")
-        
-        # ADD PROGRESS BAR FOR MAP CHECKING
-        progress = None
-        if check_type in ["manual", "auto"] and len(addons_to_check) > 1:
-            progress = QProgressDialog(tr("Checking addons for maps..."), tr("Cancel"), 0, len(addons_to_check), self)
-            progress.setWindowTitle(tr("Map check"))
-            progress.setWindowModality(Qt.WindowModal)
-            progress.setWindowFlags(progress.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-            progress.show()
-
-            progress.setFixedSize(600, 100)
+            """
+            Universal map checking function
+            """
+            hl2vr_path = self.hl2vr_entry.text().strip()
             
-            progress.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            if not hl2vr_path:
+                QMessageBox.critical(self, tr("Error"), tr("Select Half-Life 2 VR folder"))
+                return
+            
+            if not self.current_addons:
+                QMessageBox.information(self, tr("Information"), tr("No addons to check."))
+                return
+            
+            # DETERMINE WHICH ADDONS TO CHECK
+            if specific_addon:
+                addons_to_check = [specific_addon]
+                check_type = "single"
+                log.info(tr("Checking map for addon: {}").format(specific_addon['title']))
+            elif new_addons_count is not None:
+                addons_to_check = self.current_addons[:new_addons_count]
+                check_type = "auto"
+                log.info(tr("Auto map check for {} new addons").format(new_addons_count))
+            else:
+                addons_to_check = self.current_addons
+                check_type = "manual"
+                log.info(tr("Manual map check for {} addons").format(len(addons_to_check)))
+            
+            gameinfo_path = os.path.join(hl2vr_path, "hlvr", "gameinfo.txt")
+            
+            # ADD PROGRESS BAR FOR MAP CHECKING
+            progress = None
+            if check_type in ["manual", "auto"] and len(addons_to_check) > 1:
+                progress = QProgressDialog(tr("Checking addons for maps..."), tr("Cancel"), 0, len(addons_to_check), self)
+                progress.setWindowTitle(tr("Map check"))
+                progress.setWindowModality(Qt.WindowModal)
+                progress.setWindowFlags(progress.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+                progress.show()
 
-            progress.setWindowFlags(progress.windowFlags() | Qt.MSWindowsFixedSizeDialogHint)
-
-        # MULTITHREADED MAP CHECKING
-        map_addons = []
-        maps_to_extract = []
-        maps_already_extracted = []
-        needs_path_update = False
-        
-        # Function to check single addon
-        def check_single_addon(addon):
-            """Checks single addon for map presence"""
-            try:
-                addon_url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={addon['id']}"
-                is_map = workshop.is_addon_map(addon_url)
+                progress.setFixedSize(600, 100)
                 
-                if not is_map:
+                progress.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+                progress.setWindowFlags(progress.windowFlags() | Qt.MSWindowsFixedSizeDialogHint)
+
+            # Multithreaded map checking
+            map_addons = []
+            maps_to_extract = []
+            maps_already_extracted = []
+            needs_path_update = False
+            
+            # Flag for immediate stop
+            rate_limit_hit = False
+            
+            # Function to check single addon
+            def check_single_addon(addon):
+                """Checks single addon for map presence"""
+                # Declare nonlocal BEFORE first use
+                nonlocal rate_limit_hit
+                
+                if rate_limit_hit:
                     return None
                     
-                # If it's a map, check local files
-                current_path = addon['path']
-                current_title = addon['title']
-                
-                # Determine corresponding VPK and folder paths
-                vpk_path = None
-                folder_path = None
-                
-                if current_path.endswith('.vpk'):
-                    vpk_path = current_path
-                    folder_path = current_path.replace('workshop_dir.vpk', 'workshop_dir')
-                elif current_path.endswith('workshop_dir'):
-                    vpk_path = current_path + '.vpk'
-                    folder_path = current_path
-                
-                # Check files existence
-                vpk_exists = vpk_path and os.path.exists(vpk_path)
-                
-                # Check not only folder existence but also its contents
-                folder_exists = False
-                if folder_path and os.path.exists(folder_path):
-                    try:
-                        folder_contents = os.listdir(folder_path)
-                        folder_exists = len(folder_contents) > 0
-                    except:
-                        folder_exists = False
-                
-                # Determine if paths and titles need updating
-                should_have_folder_path = folder_exists or not vpk_exists
-                should_have_map_prefix = not current_title.startswith("MAP   |   ")
-                
-                needs_update_for_this_addon = False
-                
-                if should_have_folder_path and current_path != folder_path:
-                    # Path should point to folder but points to VPK
-                    addon['path'] = folder_path
-                    needs_update_for_this_addon = True
-                
-                if should_have_map_prefix:
-                    # Need to add MAP prefix
-                    addon['title'] = "MAP   |   " + current_title
-                    needs_update_for_this_addon = True
-                
-                return {
-                    'addon': addon,
-                    'vpk_exists': vpk_exists,
-                    'folder_exists': folder_exists,
-                    'vpk_path': vpk_path,
-                    'folder_path': folder_path,
-                    'needs_update': needs_update_for_this_addon
-                }
-                
-            except Exception as e:
-                log.error(tr("Error checking addon {}: {}").format(addon['title'], str(e)))
-                return None
-        
-        # Use ThreadPoolExecutor for parallel checking
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            # Start all tasks
-            future_to_addon = {executor.submit(check_single_addon, addon): addon for addon in addons_to_check}
-            
-            # Process results as they complete
-            for i, future in enumerate(concurrent.futures.as_completed(future_to_addon), 1):
-                addon = future_to_addon[future]
-                
-                # Update progress bar if exists
-                if progress:
-                    progress.setValue(i)
-                    progress.setLabelText(tr("Checking addon {} of {}: {}").format(i, len(addons_to_check), addon['title']))
-                    QApplication.processEvents()
-                    
-                    if progress.wasCanceled():
-                        progress.close()
-                        log.info(tr("Map check cancelled by user"))
-                        return
-                
                 try:
-                    result = future.result()
-                    if result is None:
-                        continue  # Not a map
+                    addon_url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={addon['id']}"
+                    is_map = workshop.is_addon_map(addon_url)
                     
-                    map_addons.append(result['addon'])
-                    
-                    # Determine if extraction needed
-                    if result['vpk_exists'] and not result['folder_exists']:
-                        maps_to_extract.append(result['addon'])
-                    elif result['folder_exists'] or not result['vpk_exists']:
-                        maps_already_extracted.append(result['addon'])
-                    
-                    if result['needs_update']:
-                        needs_path_update = True
+                    if not is_map:
+                        return None
                         
-                    log.info(tr("Map found: {}").format(result['addon']['title']))
+                    current_path = addon['path']
+                    current_title = addon['title']
                     
+                    vpk_path = None
+                    folder_path = None
+                    
+                    if current_path.endswith('.vpk'):
+                        vpk_path = current_path
+                        folder_path = current_path.replace('workshop_dir.vpk', 'workshop_dir')
+                    elif current_path.endswith('workshop_dir'):
+                        vpk_path = current_path + '.vpk'
+                        folder_path = current_path
+                    
+                    # Check file existence
+                    vpk_exists = vpk_path and os.path.exists(vpk_path)
+                    
+                    # Check not only folder existence but its contents
+                    folder_exists = False
+                    if folder_path and os.path.exists(folder_path):
+                        try:
+                            folder_contents = os.listdir(folder_path)
+                            folder_exists = len(folder_contents) > 0
+                        except:
+                            folder_exists = False
+                    
+                    # Determine if paths and titles need updating
+                    should_have_folder_path = folder_exists or not vpk_exists
+                    should_have_map_prefix = not current_title.startswith("MAP   |   ")
+                    
+                    needs_update_for_this_addon = False
+                    
+                    if should_have_folder_path and current_path != folder_path:
+                        addon['path'] = folder_path
+                        needs_update_for_this_addon = True
+                    
+                    if should_have_map_prefix:
+                        addon['title'] = "MAP   |   " + current_title
+                        needs_update_for_this_addon = True
+                    
+                    return {
+                        'addon': addon,
+                        'vpk_exists': vpk_exists,
+                        'folder_exists': folder_exists,
+                        'vpk_path': vpk_path,
+                        'folder_path': folder_path,
+                        'needs_update': needs_update_for_this_addon
+                    }
+                    
+                except workshop.SteamRateLimitException:
+                    # Set rate limit flag
+                    rate_limit_hit = True
+                    # Re-raise exception for handling in main thread
+                    raise workshop.SteamRateLimitException(tr("Steam rate limit exceeded"))
                 except Exception as e:
-                    log.error(tr("Error processing result for {}: {}").format(addon['title'], str(e)))
-        
-        # Close check progress bar
-        if progress:
-            progress.setValue(len(addons_to_check))
-            progress.close()
-        
-        log.info(tr("Check completed: {} maps, {} require extraction").format(len(map_addons), len(maps_to_extract)))
-        
-        # PROCESS CHECK RESULTS
-        
-        # Case 1: Automatic check after adding addons
-        if check_type == "auto":
-            self.handle_auto_check_result(map_addons, maps_to_extract, maps_already_extracted, 
-                                        needs_path_update, gameinfo_path)
-        
-        # Case 2: Single addon check via context menu
-        elif check_type == "single" and specific_addon:
-            self.handle_single_check_result(specific_addon, map_addons, maps_to_extract, 
-                                        maps_already_extracted, needs_path_update, gameinfo_path)
-        
-        # Case 3: Manual check of all addons
-        elif check_type == "manual":
-            self.handle_manual_check_result(map_addons, maps_to_extract, maps_already_extracted, 
-                                        needs_path_update, gameinfo_path)
+                    log.error(tr("Error checking addon {}: {}").format(addon['title'], str(e)))
+                    return None
+            
+            # Use ThreadPoolExecutor with fewer threads
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                    # Start all tasks
+                    future_to_addon = {executor.submit(check_single_addon, addon): addon for addon in addons_to_check}
+                    
+                    # Process results as they complete
+                    for i, future in enumerate(concurrent.futures.as_completed(future_to_addon), 1):
+                        addon = future_to_addon[future]
+                        
+                        # Update progress bar if exists
+                        if progress:
+                            progress.setValue(i)
+                            progress.setLabelText(tr("Checking addon {} of {}: {}").format(i, len(addons_to_check), addon['title']))
+                            QApplication.processEvents()
+                            
+                            if progress.wasCanceled():
+                                progress.close()
+                                log.info(tr("Map check cancelled by user"))
+                                return
+                        
+                        try:
+                            result = future.result()
+                            if result is None:
+                                continue  # Not a map
+                            
+                            map_addons.append(result['addon'])
+                            
+                            # Determine if extraction needed
+                            if result['vpk_exists'] and not result['folder_exists']:
+                                maps_to_extract.append(result['addon'])
+                            elif result['folder_exists'] or not result['vpk_exists']:
+                                maps_already_extracted.append(result['addon'])
+                            
+                            if result['needs_update']:
+                                needs_path_update = True
+                                
+                            log.info(tr("Map found: {}").format(result['addon']['title']))
+                            
+                        except workshop.SteamRateLimitException as e:
+                            # Steam rate limited - stop immediately
+                            rate_limit_hit = True
+                            error_msg = tr("Steam request limit exceeded! " \
+                            "Open Help > Recommendations and issues, scroll down to \"Steam request limit exceeded\" paragraph for more details and solutions.")
+                            
+                            #log.error(f"Steam rate limit (429) during map check for addon: {addon['title']}")
+                            
+                            # Cancel all remaining tasks
+                            for f in future_to_addon:
+                                if not f.done():
+                                    f.cancel()
+                            
+                            if progress:
+                                progress.close()
+                            
+                            QMessageBox.critical(self, tr("Steam Rate Limit"), error_msg)
+                            return
+                        except Exception as e:
+                            log.error(tr("Error processing result for {}: {}").format(addon['title'], str(e)))
+            except Exception as e:
+                log.error(tr("Error in map check: {}").format(str(e)))
+                if progress:
+                    progress.close()
+                return
+            
+            # Close progress bar
+            if progress:
+                progress.setValue(len(addons_to_check))
+                progress.close()
+            
+            log.info(tr("Check completed: {} maps, {} require extraction").format(len(map_addons), len(maps_to_extract)))
+            
+            
+            # PROCESS CHECK RESULTS
+            
+            # Case 1: Automatic check after adding addons
+            if check_type == "auto":
+                self.handle_auto_check_result(map_addons, maps_to_extract, maps_already_extracted, 
+                                            needs_path_update, gameinfo_path)
+            
+            # Case 2: Single addon check via context menu
+            elif check_type == "single" and specific_addon:
+                self.handle_single_check_result(specific_addon, map_addons, maps_to_extract, 
+                                            maps_already_extracted, needs_path_update, gameinfo_path)
+            
+            # Case 3: Manual check of all addons
+            elif check_type == "manual":
+                self.handle_manual_check_result(map_addons, maps_to_extract, maps_already_extracted, 
+                                            needs_path_update, gameinfo_path)
 
     def handle_auto_check_result(self, map_addons, maps_to_extract, maps_already_extracted, 
                             needs_path_update, gameinfo_path):
@@ -2244,8 +2340,10 @@ class MainWindow(QMainWindow):
             self.extraction_progress.show()
             
             # Start extraction
+            # Combine maps to extract with already extracted maps
+            all_map_addons = maps_to_extract + maps_already_extracted
             self.map_extraction_worker = MapExtractionWorker(gameinfo_path, self.current_addons, 
-                                                        specific_addons=maps_to_extract)
+                                                            specific_addons=all_map_addons)
             self.map_extraction_worker.progress.connect(self.update_extraction_progress)
             self.map_extraction_worker.finished.connect(self.on_map_extraction_finished)
             
@@ -2388,7 +2486,7 @@ class MainWindow(QMainWindow):
 
 
 
-    # === ТАБЛИЦА И ИНТЕРФЕЙС === 
+    # === TABLE AND INTERFACE === 
 
 
 

@@ -375,21 +375,24 @@ class HelpDialog(QDialog):
     def get_recommendations_html(self):
         if self.language == "ru":
             return """
-            <h1>Рекомендации и проблемы</h1>
+            <h2>Рекомендации</h2>
             <ul>
             <li>С модами, представляющими собой простой набор карт с каким-либо минимальным кастомным контентом (материалы, модели), не должно возникать серьезных проблем.
             Проблемы могут быть тогда, когда в моде есть свои ресурсы, скрипты, конфиги и тому подобное, т.е. полноценный мод с кампанией. 
             Вы можете проверить наличие таких папок, открыв папку аддона, если он был распакован. Но в принципе даже так многие моды будут как минимум играбельными.</li>
 
-            <br><li>Если вы собираетесь играть в аддоны-кампании, то запускайте их только через Episode 2 VR, поскольку они могут использовать контент Эпизодов.
+            <br><li>Если вы собираетесь играть в аддоны-кампании, то <b>запускайте их только через Episode 2 VR</b>, поскольку они могут использовать контент Эпизодов.
             Это обычно не касается карт, которые заменяют оригинальные карты HL2.</li>
 
             <br><li>Для более корректной работы карт следует установить контент <b>Anniversary Update</b> (см. вкладку).</li>
 
             <br><li>Не добавляйте больше одного аддона-кампании, чтобы избежать ошибок из-за файловых конфликтов.</li>
+            </ul>
 
-            <br><li>Некоторые аддоны-кампании при заходе в игру будут каждый раз сбрасывать ваши VR настройки и предлагать пройти первоначальную настройку.
-            Решается удалением следующего файла в папке аддона: *ID*\\workshop_dir\\cfg\\config.cfg</li>
+            <h2>Проблемы</h2>
+            <ul>
+            <li>Некоторые аддоны-кампании при заходе в игру будут каждый раз сбрасывать ваши VR настройки и предлагать пройти первоначальную настройку.
+            Решается удалением следующего файла в папке аддона: <b>*ID*\\workshop_dir\\cfg\\config.cfg</b></li>
 
             <br><li>В некоторых аддонах-кампаниях отсутствует фоновая карта для меню, поэтому для навигации в меню придется использовать рабочий стол.</li>
 
@@ -403,30 +406,58 @@ class HelpDialog(QDialog):
 
             <br><li>Всегда есть малая вероятность появления ошибки "A.I. Disabled".</li>
 
-            <br><li>Некоторые моды по типу порта Cinematic Mod в мастерской могут вообще не запускаться.
-            Но <i>специально</i> для тех, кто хочет его попробовать:
-            <br>Из папки аддона удалите все файлы кроме папок, затем откройте файл cfg/autoexec.cfg и удалите строчку "vr_first_person_uses_world_model 0".
-            Учтите, что мод использует собственные версии некоторых моделей (например Аликс), поэтому некоторые рескины могут не работать, даже если у них выше приоритет.
+            <br><li>Некоторые моды могут вообще не запускаться. Для возможного исправления откройте папку аддона и удалите все файлы кроме папок, если они есть.
+
             </li>
             </ul>
+
+            <h2>Превышен лимит запросов Steam</h2>
+            <p>
+            Эта ошибка может возникать при попытке встроить установленные аддоны или проверить карты.
+            </p>
+
+<p>Что это значит?</p>
+
+            <ul>
+            <li>Steam в данный момент ограничивает запросы к своим серверам из-за высокой нагрузки, вероятно вызванной каким-то событием или временными проблемами Steam.</li>
+            <li>Вы временно не можете открывать страницы предметов мастерской. Это ограничение обычно действует всего пару минут. Подождите немного, а затем проверьте, открываются ли страницы предметов.</li>
+            <li>Из-за этих ограничений в данный момент у вас не получится встроить установленные аддоны или проверить карты в списке аддонов.</li>
+            </ul>
+
+<p>Что делать?</p>
+            <ul>
+            <li>Убедитесь, что доступ к страницам предметов мастерской восстановлен.</li>
+            <li>Отключите автоматическую проверку карт.</li>
+            <li>Вам придется самим определять, какие аддоны являются картами, и проверять их правой кнопкой мыши по аддону в таблице.</li>
+            <li>Если вы пытались встроить установленные аддоны, используйте коллекции в качестве обходного метода:
+            <br>1. Откройте Ваши подписки;
+            <br>2. Нажмите «Сохранить в коллекции» и сохраните в новой коллекции;
+            <br>3. Откройте коллекцию, измените видимость на «по ссылке» и дождитесь, когда исчезнет плашка «Эта работа ещё не проанализирована...»;
+            <br>4. Встройте коллекцию. Убедитесь, что порядок аддонов соответствует списку в HL2.</li>
+            
+            </ul>
+
             """
         else:
             return """
-            <h1>Recommendations and issues</h1>
+            <h2>Recommendations</h2>
             <ul>
             <li>With mods that are simple packs of maps with some minimal custom content (materials, models), there shouldn't be serious problems.
             Problems may occur when the mod has its own resources, scripts, configs, etc., i.e., a full-fledged mod with a campaign. 
             You can check for such folders by opening the addon folder if it was unpacked. But even so, many mods will be at least playable.</li>
 
-            <br><li>If you're going to play campaign addons, launch them only through Episode 2 VR, as they may use Episode content.
+            <br><li>If you're going to play campaign addons, <b>launch them only through Episode 2 VR</b>, as they may use Episode content.
             This usually doesn't apply to maps that replace original HL2 maps.</li>
 
             <br><li>For more correct map functionality, install the <b>Anniversary Update</b> content (see tab).</li>
 
             <br><li>Don't mount more than one campaign addon to avoid errors due to file conflicts.</li>
+            </ul>
 
-            <br><li>Some campaign addons will reset your VR settings every time you enter the game and prompt you to go through initial setup.
-            Solved by deleting the following file in the addon folder: *ID*\\workshop_dir\\cfg\\config.cfg</li>
+            <h2>Issues</h2>
+            <ul>
+            <li>Some campaign addons will reset your VR settings every time you enter the game and prompt you to go through initial setup.
+            Solved by deleting the following file in the addon folder: <b>*ID*\\workshop_dir\\cfg\\config.cfg</b></li>
 
             <br><li>Some campaign addons lack a background map for the menu, so you'll have to use the desktop for menu navigation.</li>
 
@@ -440,12 +471,35 @@ class HelpDialog(QDialog):
 
             <br><li>There's always a small chance of "A.I. Disabled" error appearing.</li>
 
-            <br><li>Some mods like the Cinematic Mod port in the workshop may not launch at all.
-            But <i>specifically</i> for those who want to try it:
-            <br>From the addon folder, delete all files except folders, then open the cfg/autoexec.cfg file and delete the line "vr_first_person_uses_world_model 0".
-            Note that the mod uses its own versions of some models (like Alyx), so some reskins may not work even if they have higher priority.
+            <br><li>Some mods may not launch at all. To potentially fix this, open the addon's folder and delete all files except folders, if they exist.
             </li>
             </ul>
+
+            <h2>Steam request limit exceeded</h2>
+            <p>
+            This error may occur when you try to mount installed addons or check maps.
+            </p>
+<p>What does it mean?</p>
+
+            <ul>
+            <li>Steam is currently limiting requests to its servers due to high load, likely caused by an event or Steam just having trouble.</li>
+            <li>You temporarily cannot access Workshop item pages. This limitation usually lasts only a couple of minutes. Wait a bit and then check if item pages open.</li>
+            <li>Due to these limitations, you currently won't be able to mount installed addons or check maps in your addon list.</li>
+            </ul>
+
+<p>What to do?</p>
+            <ul>
+            <li>Make sure you have regained access to Workshop item pages.</li>
+            <li>Disable automatic map checking.</li>
+            <li>You'll need to manually identify which addons are maps and check them by right-clicking on an addon in the table.</li>
+            <li>If you were trying to mount installed addons, use collections as a workaround:
+            <br>1. Open your Subscribed items;
+            <br>2. Click 'Save to collection' and save to a new collection;
+            <br>3. Open the collection, change visibility to 'Unlisted' and wait until the 'This item is awaiting analysis...' notice disappears;
+            <br>4. Mount the collection. Verify that the addon order matches the list in HL2.</li>
+            
+            </ul>
+            
             """
 
     def get_anniversary_html(self):

@@ -7,6 +7,7 @@ from logger import log
 import concurrent.futures
 from i18n import tr, translator
 import gameinfo
+import requests
 
 
 def read_addons_from_gameinfo(gameinfo_path):
@@ -574,9 +575,11 @@ def prepare_single_addon_for_embedding(addon_url, hl2vr_path, hl2_path, check_fi
         log.error(f"Error preparing single addon: {str(e)}")
         return False, None, f"An unexpected error occurred:\n{str(e)}"
 
-def prepare_addons_from_workshop_txt(hl2vr_path, hl2_path, check_files=True):
+def prepare_addons_from_workshop_txt(hl2vr_path, hl2_path, check_files=True, check_cancel=None, progress_callback=None):
     """
     Prepares addons from workshop.txt for mounting
+    check_cancel: function that returns True if operation should be cancelled
+    progress_callback: function(current, total) to report progress
     """
     try:
         log.info(tr("Starting preparation of addons from workshop.txt"))
@@ -589,70 +592,115 @@ def prepare_addons_from_workshop_txt(hl2vr_path, hl2_path, check_files=True):
         if not addon_ids:
             return False, None, tr("Installed addons not found.")
         
+        # Check cancellation before starting
+        if check_cancel and check_cancel():
+            return False, None, tr("Operation cancelled by user")
+        
         gameinfo_path = os.path.join(hl2vr_path, "hlvr", "gameinfo.txt")
         
-        # MULTITHREADED PROCESSING - get addon titles in parallel BUT PRESERVE ORDER
+        # Multithreaded processing with immediate stop capability
         unique_addons = []
         failed_addons = []
         
+        # Flag to stop all threads
+        rate_limit_hit = False
+        
         def fetch_addon_info(addon_id):
             """Function to get information about one addon"""
+            # Declare nonlocal BEFORE first use of the variable
+            nonlocal rate_limit_hit
+            
+            if rate_limit_hit:
+                return ('cancelled', addon_id, None)
+                
             try:
                 addon_id_str, title = workshop.get_addon_by_id(addon_id)
                 if addon_id_str and title:
                     return ('success', addon_id_str, title)
                 else:
                     return ('failed', addon_id, None)
+            except workshop.SteamRateLimitException as e:
+                # Mark that rate limit reached
+                rate_limit_hit = True
+                return ('rate_limit', addon_id, None)
             except Exception as e:
                 return ('error', addon_id, str(e))
         
-        # Use ThreadPoolExecutor for parallel requests BUT PRESERVE ORDER
+        # Use fewer threads to reduce load
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            # Submit all tasks and store futures with their original index
+            # Submit tasks
             future_to_index = {}
             for index, addon_id in enumerate(addon_ids):
+                # Check cancellation and limit before submitting each task
+                if check_cancel and check_cancel():
+                    return False, None, tr("Operation cancelled by user")
+                
+                if rate_limit_hit:
+                    break
+                    
                 future = executor.submit(fetch_addon_info, addon_id)
                 future_to_index[future] = index
             
-            # Create a list to store results in original order
-            results = [None] * len(addon_ids)
-            
-            # Process results as they complete, but store in correct position
+            # Process results
+            processed_count = 0
             for future in concurrent.futures.as_completed(future_to_index):
+                # Check cancellation
+                if check_cancel and check_cancel():
+                    return False, None, tr("Operation cancelled by user")
+                
                 index = future_to_index[future]
                 addon_id = addon_ids[index]
                 
                 try:
                     result_type, result_id, result_data = future.result()
-                    if result_type == 'success':
-                        log.info(tr("Loaded ({}/{}): {}").format(index + 1, len(addon_ids), result_data))
-                        results[index] = ('success', result_id, result_data)
+                    
+                    if result_type == 'rate_limit':
+                        # Immediately stop when rate limit reached
+                        error_msg = tr("Steam request limit exceeded! " \
+                            "Open Help > Recommendations and issues, scroll down to \"Steam request limit exceeded\" paragraph for more details and solutions.")
+                        log.error(f"Steam rate limit (429) detected while loading addon {addon_id}")
+                        
+                        # Cancel all remaining tasks
+                        for f in future_to_index:
+                            if not f.done():
+                                f.cancel()
+                        
+                        return False, None, error_msg
+                    
+                    elif result_type == 'success':
+                        log.info(tr("Loaded ({}/{}): {}").format(processed_count + 1, len(addon_ids), result_data))
+                        unique_addons.append((result_id, result_data))
                     elif result_type == 'failed':
-                        log.warning(tr("✗ Failed to load ({}/{}): ID {}").format(index + 1, len(addon_ids), result_id))
-                        results[index] = ('failed', result_id, None)
+                        log.warning(tr("✗ Failed to load ({}/{}): ID {}").format(processed_count + 1, len(addon_ids), result_id))
+                        failed_addons.append(result_id)
+                    elif result_type == 'cancelled':
+                        log.debug(tr("Cancelled loading ID {} due to rate limit").format(result_id))
                     else:
-                        log.error(tr("✗ Error loading ({}/{}): ID {} - {}").format(index + 1, len(addon_ids), result_id, result_data))
-                        results[index] = ('error', result_id, result_data)
+                        log.error(tr("✗ Error loading ({}/{}): ID {} - {}").format(processed_count + 1, len(addon_ids), result_id, result_data))
+                        failed_addons.append(result_id)
+                        
                 except Exception as e:
-                    log.error(tr("✗ Unexpected error ({}/{}): ID {} - {}").format(index + 1, len(addon_ids), addon_id, str(e)))
-                    results[index] = ('error', addon_id, str(e))
+                    log.error(tr("✗ Unexpected error ({}/{}): ID {} - {}").format(processed_count + 1, len(addon_ids), addon_id, str(e)))
+                    failed_addons.append(addon_id)
+                
+                processed_count += 1
+                # Update progress
+                if progress_callback:
+                    progress_callback(processed_count, len(addon_ids))
         
-        # Process results in original order
-        for result in results:
-            if not result:
-                continue
-            result_type, result_id, result_data = result
-            if result_type == 'success':
-                unique_addons.append((result_id, result_data))
-            else:
-                failed_addons.append(result_id)
+        # Check cancellation after loading
+        if check_cancel and check_cancel():
+            return False, None, tr("Operation cancelled by user")
         
         if not unique_addons:
             return False, None, tr("Failed to get information about installed addons.")
         
         log.info(tr("Successfully processed {} out of {} addons").format(len(unique_addons), len(addon_ids)))
 
-        # Continue with the rest of the function unchanged...
+        # Check cancellation before processing duplicates
+        if check_cancel and check_cancel():
+            return False, None, tr("Operation cancelled by user")
+        
         # Check duplicates
         existing_ids = {addon['id'] for addon in read_addons_from_gameinfo(gameinfo_path)}
         filtered_addons = []
@@ -664,6 +712,10 @@ def prepare_addons_from_workshop_txt(hl2vr_path, hl2_path, check_files=True):
             else:
                 filtered_addons.append((addon_id, title))
         
+        # Check cancellation before preparing paths
+        if check_cancel and check_cancel():
+            return False, None, tr("Operation cancelled by user")
+        
         if not filtered_addons:
             if duplicates:
                 return False, None, tr("All addons already added.")
@@ -674,11 +726,19 @@ def prepare_addons_from_workshop_txt(hl2vr_path, hl2_path, check_files=True):
         from path_utils import get_workshop_path
         workshop_path = get_workshop_path(hl2_path)
         
+        # Check cancellation before forming paths
+        if check_cancel and check_cancel():
+            return False, None, tr("Operation cancelled by user")
+        
         # Form paths to VPK files
         addons_with_paths = []
         for addon_id, title in filtered_addons:
             vpk_path = os.path.join(workshop_path, addon_id, "workshop_dir.vpk")
             addons_with_paths.append((vpk_path, title))
+        
+        # Check cancellation before file existence check
+        if check_cancel and check_cancel():
+            return False, None, tr("Operation cancelled by user")
         
         # Check files existence if option enabled
         missing_addons = []
@@ -697,12 +757,27 @@ def prepare_addons_from_workshop_txt(hl2vr_path, hl2_path, check_files=True):
             existing_vpk_addons = []
             missing_vpk_addons = []
             
-            for vpk_path, title, addon_id in vpk_addons:
+            for i, (vpk_path, title, addon_id) in enumerate(vpk_addons):
+                # Check cancellation during file check
+                if check_cancel and check_cancel():
+                    return False, None, tr("Operation cancelled by user")
+                    
                 if os.path.exists(vpk_path):
                     existing_vpk_addons.append((vpk_path, title))
                     final_unique_addons.append((addon_id, title))
                 else:
                     missing_vpk_addons.append((addon_id, title, vpk_path))
+                
+                # Update progress for file checking
+                if progress_callback:
+                    base_progress = len(addon_ids)
+                    current_file_check = i + 1
+                    total_files_check = len(vpk_addons) + len(folder_addons)
+                    progress_callback(base_progress + current_file_check, base_progress + total_files_check)
+            
+            # Check cancellation after VPK check
+            if check_cancel and check_cancel():
+                return False, None, tr("Operation cancelled by user")
             
             # Folders always considered existing
             existing_folder_addons = [(path, title) for path, title, addon_id in folder_addons]
@@ -838,139 +913,138 @@ def extract_map_vpk(vpk_path, output_dir, progress_callback=None, check_cancel=N
 
 def check_and_extract_maps(gameinfo_path, current_addons, progress_callback=None, specific_addons=None):
     """
-    Checks addons for maps and extracts them
+    Checks addons for unpacked maps and extracts them
+    ASSUMES all addons passed are already confirmed as maps
     progress_callback: function to update progress (current_map, total_maps, current_file, total_files, status) returns False if need to cancel
     """
     try:
-        map_addons = []
         extracted_addons = []
         failed_addons = []
         updated_addons = []
         for addon in current_addons:
             updated_addons.append(addon.copy())
 
-        addons_to_process = current_addons
-        if specific_addons is not None:
-            addons_to_process = specific_addons
+        # Determine which addons to process
+        addons_to_process = specific_addons if specific_addons is not None else []
+        
+        # If specific_addons is None, this function shouldn't be called
+        # But for safety, if it happens, just return
+        if not addons_to_process:
+            log.warning(tr("No specific addons provided for map extraction"))
+            return True, [], {
+                'extracted': [],
+                'failed': [],
+                'total_maps': 0,
+                'updated_addons': updated_addons,
+                'cancelled': False
+            }
 
-        log.info(tr("Checking maps: {} addons to process").format(len(addons_to_process)))
-
-        # Find all maps among addons to process
-        for addon in addons_to_process:
-            addon_url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={addon['id']}"
-            if workshop.is_addon_map(addon_url):
-                map_addons.append(addon)
-
-        total_maps = len(map_addons)
+        total_maps = len(addons_to_process)
         current_map = 0
 
-        log.info(tr("Maps found: {}").format(total_maps))
+        log.info(tr("Extracting maps: {} maps to process").format(total_maps))
 
         for i, addon in enumerate(addons_to_process):
             # Check cancellation before processing each addon
             if progress_callback:
-                should_continue = progress_callback(current_map, total_maps, 0, 0, tr("Checking addon: {}").format(addon['title']))
+                should_continue = progress_callback(current_map, total_maps, 0, 0, tr("Processing addon: {}").format(addon['title']))
                 if not should_continue:
-                    return True, map_addons, {
+                    return True, addons_to_process, {
                         'extracted': extracted_addons,
                         'failed': failed_addons,
-                        'total_maps': len(map_addons),
+                        'total_maps': total_maps,
                         'updated_addons': updated_addons,
                         'cancelled': True
                     }
             
-            addon_url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={addon['id']}"
-            is_map = workshop.is_addon_map(addon_url)
+            current_map += 1
             
-            if is_map:
-                current_map += 1
-                
-                updated_addon = None
-                for ua in updated_addons:
-                    if ua['id'] == addon['id']:
-                        updated_addon = ua
-                        break
-                
-                if not updated_addon:
-                    continue
+            # Find the addon in updated_addons
+            updated_addon = None
+            for ua in updated_addons:
+                if ua['id'] == addon['id']:
+                    updated_addon = ua
+                    break
+            
+            if not updated_addon:
+                continue
 
-                current_path = addon['path']
-                current_title = addon['title']
-                
-                vpk_path = None
-                output_dir = None
-                
-                if current_path.endswith('.vpk'):
-                    vpk_path = current_path
-                    output_dir = current_path.replace('workshop_dir.vpk', 'workshop_dir')
-                elif current_path.endswith('workshop_dir'):
-                    vpk_path = current_path + '.vpk'
-                    output_dir = current_path
+            current_path = addon['path']
+            current_title = addon['title']
+            
+            vpk_path = None
+            output_dir = None
+            
+            if current_path.endswith('.vpk'):
+                vpk_path = current_path
+                output_dir = current_path.replace('workshop_dir.vpk', 'workshop_dir')
+            elif current_path.endswith('workshop_dir'):
+                vpk_path = current_path + '.vpk'
+                output_dir = current_path
 
-                # Check not only folder existence but also its contents
-                folder_exists = False
-                if output_dir and os.path.exists(output_dir):
-                    try:
-                        folder_contents = os.listdir(output_dir)
-                        folder_exists = len(folder_contents) > 0
-                        if not folder_exists:
-                            # Folder exists but empty - delete it
-                            
-                            shutil.rmtree(output_dir)
-                    except Exception as e:
-                        folder_exists = False
+            # Check not only folder existence but also its contents
+            folder_exists = False
+            if output_dir and os.path.exists(output_dir):
+                try:
+                    folder_contents = os.listdir(output_dir)
+                    folder_exists = len(folder_contents) > 0
+                    if not folder_exists:
+                        # Folder exists but empty - delete it
+                        shutil.rmtree(output_dir)
+                except Exception as e:
+                    folder_exists = False
 
-                # Check VPK file existence
-                vpk_exists = vpk_path and os.path.exists(vpk_path)
-                
-                # If VPK file exists and no NON-EMPTY folder, extract
-                if vpk_exists and not folder_exists:
-                    def file_progress(current_file, total_files, filename):
-                        if progress_callback:
-                            return progress_callback(current_map, total_maps, current_file, total_files, tr("{}: {}").format(addon['title'], filename))
-                        return True
+            # Check VPK file existence
+            vpk_exists = vpk_path and os.path.exists(vpk_path)
+            
+            # If VPK file exists and no NON-EMPTY folder, extract
+            if vpk_exists and not folder_exists:
+                def file_progress(current_file, total_files, filename):
+                    if progress_callback:
+                        return progress_callback(current_map, total_maps, current_file, total_files, tr("{}: {}").format(addon['title'], filename))
+                    return True
 
-                    success, message = extract_map_vpk(vpk_path, output_dir, file_progress)
-                    if success:
-                        updated_addon['path'] = output_dir
-                        if not current_title.startswith("MAP   |   "):
-                            updated_addon['title'] = "MAP   |   " + current_title
-                        extracted_addons.append(updated_addon)
-                    else:
-                        if tr("cancelled") in message:
-                            # Extraction was cancelled
-                            return True, map_addons, {
-                                'extracted': extracted_addons,
-                                'failed': failed_addons,
-                                'total_maps': len(map_addons),
-                                'updated_addons': updated_addons,
-                                'cancelled': True
-                            }
-                        failed_addons.append((updated_addon, message))
-                        continue
-                # If folder already exists AND NOT EMPTY, check prefix
-                elif folder_exists:
+                success, message = extract_map_vpk(vpk_path, output_dir, file_progress)
+                if success:
                     updated_addon['path'] = output_dir
                     if not current_title.startswith("MAP   |   "):
                         updated_addon['title'] = "MAP   |   " + current_title
-                # If VPK doesn't exist, but non-empty folder exists - all good
-                elif not vpk_exists and folder_exists:
-                    updated_addon['path'] = output_dir
-                    if not current_title.startswith("MAP   |   "):
-                        updated_addon['title'] = "MAP   |   " + current_title
+                    extracted_addons.append(updated_addon)
                 else:
-                    # Neither VPK nor non-empty folder exist
-                    error_msg = tr("VPK file and non-empty extraction folder not found")
-                    if vpk_path:
-                        error_msg += tr(" (VPK: {})").format(vpk_path)
-                    failed_addons.append((updated_addon, error_msg))
+                    if tr("cancelled") in message:
+                        # Extraction was cancelled
+                        return True, addons_to_process, {
+                            'extracted': extracted_addons,
+                            'failed': failed_addons,
+                            'total_maps': total_maps,
+                            'updated_addons': updated_addons,
+                            'cancelled': True
+                        }
+                    failed_addons.append((updated_addon, message))
                     continue
+            # If folder already exists AND NOT EMPTY, check prefix
+            elif folder_exists:
+                updated_addon['path'] = output_dir
+                if not current_title.startswith("MAP   |   "):
+                    updated_addon['title'] = "MAP   |   " + current_title
+            # If VPK doesn't exist, but non-empty folder exists - all good
+            elif not vpk_exists and folder_exists:
+                updated_addon['path'] = output_dir
+                if not current_title.startswith("MAP   |   "):
+                    updated_addon['title'] = "MAP   |   " + current_title
+            else:
+                # Neither VPK nor non-empty folder exist
+                error_msg = tr("VPK file and non-empty extraction folder not found")
+                if vpk_path:
+                    error_msg += tr(" (VPK: {})").format(vpk_path)
+                failed_addons.append((updated_addon, error_msg))
+                continue
 
         log.info(tr("Map check completed: {} extracted, {} errors").format(len(extracted_addons), len(failed_addons)))
-        return True, map_addons, {
+        return True, addons_to_process, {
             'extracted': extracted_addons,
             'failed': failed_addons,
-            'total_maps': len(map_addons),
+            'total_maps': total_maps,
             'updated_addons': updated_addons,
             'cancelled': False
         }

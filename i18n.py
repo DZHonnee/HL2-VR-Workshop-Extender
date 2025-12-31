@@ -549,6 +549,22 @@ class Translator(QObject):
 "No addons to reverse": "Список аддонов пуст",
 "Addons order reversed": "Порядок аддонов изменен на обратный",
 
+
+"Operation cancelled by user": "Операция отменена пользователем",
+"Loading addons information...": "Загрузка информации об аддонах...",
+"Mounting installed addons": "Встраивание установленных аддонов",
+"Mounting cancelled by user": "Встраивание отменено пользователем",
+
+"Steam rate limit exceeded. Please wait and try again.": "Превышен лимит запросов Steam. Подождите и попробуйте снова.",
+"Steam Rate Limit": "Лимит запросов Steam",
+
+"Cancelled loading ID {} due to rate limit": "Загрузка ID {} отменена из-за лимита запросов",
+"Error in map check: {}": "Ошибка при проверке карт: {}",
+"Steam rate limit exceeded": "Превышен лимит запросов Steam",
+
+"Steam request limit exceeded! Open Help > Recommendations and issues, scroll down to \"Steam request limit exceeded\" paragraph for more details and solutions."
+: "Превышен лимит запросов Steam! Откройте Справка > Рекомендации и проблемы, прокрутите вниз до раздела \"Превышен лимит запросов Steam\" для получения подробной информации и решений."
+
             }
             
         except Exception as e:

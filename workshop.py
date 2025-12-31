@@ -4,6 +4,9 @@ import re
 from logger import log
 from i18n import tr, translator
 
+class SteamRateLimitException(Exception):
+    pass
+
 def get_page_type(url):
     """
     Determines page type by presence of specific substrings in HTML
@@ -28,13 +31,18 @@ def get_page_type(url):
         
         return 'unknown'
         
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            log.error(f"Steam rate limit (429) when checking page type: {url}")
+            raise
+        return 'unknown'
     except Exception as e:
         return 'unknown'
 
 def get_collection_addons(collection_url):
     """
     Gets addons list from Steam Workshop collection
-    Returns list of tuples (id, title)
+    Returns list of tuples (id, title) in REVERSE ORDER
     """
     try:
         log.info(tr("Getting addons from collection: {}").format(collection_url))
@@ -81,10 +89,17 @@ def get_collection_addons(collection_url):
         
         # REVERSE THE ORDER OF ADDONS
         addons.reverse()
-
-        log.info(tr("Got {} addons from collection").format(len(addons)))
+        
+        log.info(tr("Got {} addons from collection (in reverse order)").format(len(addons)))
         return addons
         
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            log.error(f"Steam rate limit (429) when getting collection: {collection_url}")
+            raise
+        else:
+            log.error(f"Error getting addons from collection: {str(e)}")
+            return []
     except Exception as e:
         log.error(f"Error getting addons from collection: {str(e)}")
         return []
@@ -114,6 +129,12 @@ def get_single_addon(addon_url):
         title = title_element.get_text(strip=True) if title_element else tr("Unknown title")
         return addon_id, title
         
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            log.error(f"Steam rate limit (429) when getting addon info: {addon_url}")
+            raise
+        else:
+            return None, None
     except Exception as e:
         return None, None
 
@@ -130,7 +151,13 @@ def validate_workshop_url(url, expected_type):
         return False, tr("Invalid URL")
     
     # Determine page type by specific substrings in HTML
-    page_type = get_page_type(url)
+    try:
+        page_type = get_page_type(url)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            return False, tr("Steam rate limit exceeded. Please wait and try again.")
+        else:
+            return False, tr("Failed to determine page")
     
     if page_type == 'unknown':
         return False, tr("Failed to determine page")
@@ -151,6 +178,14 @@ def get_addon_by_id(addon_id):
     try:
         url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={addon_id}"
         return get_single_addon(url)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            #log.error(f"Steam rate limit (429) when getting addon by ID: {addon_id}")
+            raise SteamRateLimitException(tr("Steam rate limit exceeded"))
+        else:
+            return None, None
+    except SteamRateLimitException:
+        raise
     except Exception as e:
         return None, None
     
@@ -170,6 +205,15 @@ def is_addon_map(addon_url):
         map_indicator = "https://steamcommunity.com/workshop/browse/?appid=220&browsesort=toprated&section=readytouseitems&requiredtags%5B%5D=maps"
         return map_indicator in response.text
         
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 429:
+            log.error(f"Steam rate limit (429) when checking if addon is map: {addon_url}")
+            raise SteamRateLimitException(tr("Steam rate limit exceeded"))
+        else:
+            log.error(f"Error checking if addon is a map: {e}")
+            return False
+    except SteamRateLimitException:
+        raise
     except Exception as e:
-        print(f"Error checking if addon is a map: {e}")
+        log.error(f"Error checking if addon is a map: {e}")
         return False
