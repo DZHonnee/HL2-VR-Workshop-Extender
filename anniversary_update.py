@@ -11,7 +11,28 @@ class AnniversaryUpdateManager:
         self.anniversary_content_path = os.path.join(os.path.dirname(__file__), "AnniversaryContent")
     
     def validate_paths(self):
-        return validate_paths(self.hl2vr_path, self.hl2_path)
+        if not self.hl2vr_path:
+            return False, tr("Select Half-Life 2 VR folder")
+        
+        if not self.hl2_path:
+            return False, tr("Select Half-Life 2 folder")
+        
+        # Check that HL2 VR path ends with correct folder name
+        normalized_hl2vr = os.path.normpath(self.hl2vr_path)
+        if not normalized_hl2vr.endswith("Half-Life 2 VR"):
+            return False, tr("Wrong path selected for Half-Life 2 VR folder")
+        
+        # Check that HL2 path ends with correct folder name
+        normalized_hl2 = os.path.normpath(self.hl2_path)
+        if not normalized_hl2.endswith("Half-Life 2"):
+            return False, tr("Wrong path selected for Half-Life 2 folder")
+        
+        # Check for gameinfo.txt in hlvr folder (main requirement)
+        gameinfo_path = os.path.join(self.hl2vr_path, "hlvr", "gameinfo.txt")
+        if not os.path.exists(gameinfo_path):
+            return False, tr("gameinfo.txt not found, check file integrity")
+        
+        return True, ""
     
     def check_game_directories(self):
         directories = {
