@@ -7,13 +7,14 @@ CONFIG_FILE = "config.json"
 def load_config():
     default_config = {
         "collection_url": "",
-        "single_addon_url": "", 
+        "single_addon_url": "",
         "hl2vr_path": "",
         "hl2_path": "",
         "check_addon_files": True,
         "auto_check_maps": True,
         "embed_into_episodes": True,
-        "language": "en"
+        "language": "en",
+        "check_updates_on_startup": True
     }
     
     if not os.path.exists(CONFIG_FILE):
@@ -32,17 +33,18 @@ def load_config():
         log.error(f"Error loading configuration: {e}")
         return default_config
 
-def save_config(collection_url, single_addon_url, hl2vr_path, hl2_path, 
-                check_addon_files, auto_check_maps, embed_into_episodes, language="en"):
+def save_config(collection_url, single_addon_url, hl2vr_path, hl2_path,
+                check_addon_files, auto_check_maps, embed_into_episodes, language="en", check_updates_on_startup=True):
     config = {
         "collection_url": collection_url,
-        "single_addon_url": single_addon_url, 
+        "single_addon_url": single_addon_url,
         "hl2vr_path": hl2vr_path,
         "hl2_path": hl2_path,
         "check_addon_files": check_addon_files,
         "auto_check_maps": auto_check_maps,
         "embed_into_episodes": embed_into_episodes,
-        "language": language
+        "language": language,
+        "check_updates_on_startup": check_updates_on_startup
     }
     
     try:

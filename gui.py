@@ -19,6 +19,8 @@ import re
 import webbrowser
 import subprocess
 from help_dialog import HelpDialog
+from update_checker import UpdateChecker
+from version import __version__
 
 
 class AddonWorker(QThread):
@@ -498,10 +500,20 @@ class MainWindow(QMainWindow):
 
         self.load_config()
         
+        
+        # Check for updates on startup if enabled
+        if self.app_config.get("check_updates_on_startup", True):
+            self.check_for_updates_startup()
+        
         # Adding a timer for delayed saving
         self.save_timer = QTimer()
         self.save_timer.setSingleShot(True)
         self.save_timer.timeout.connect(self.save_addons_order)
+        
+        # Set the update checkbox state after UI initialization
+        check_updates_startup = self.app_config.get("check_updates_on_startup", True)
+        if hasattr(self, 'check_updates_startup_checkbox'):
+            self.check_updates_startup_checkbox.setChecked(check_updates_startup)
         
     def load_icon(self):
         possible_paths = [
@@ -724,11 +736,20 @@ class MainWindow(QMainWindow):
 
         log.set_widget(self.log_widget)
         
-        # Help button
+        # Help button and update checkbox - placed to the right of help button
+        help_btn_layout = QHBoxLayout()
         help_btn = QPushButton(tr("Help"))
         help_btn.setFixedWidth(100)
         help_btn.clicked.connect(self.show_help)
-        left_layout.addWidget(help_btn)
+        help_btn_layout.addWidget(help_btn)
+        
+        # Update check checkbox only - placed to the right of help button
+        self.check_updates_startup_checkbox = QCheckBox(tr("Check for updates on startup"))
+        self.check_updates_startup_checkbox.stateChanged.connect(self.on_check_updates_startup_changed)
+        help_btn_layout.addWidget(self.check_updates_startup_checkbox)
+        help_btn_layout.addStretch()  # Add stretch to push everything to the left
+        
+        left_layout.addLayout(help_btn_layout)
 
 
 
@@ -1072,16 +1093,17 @@ class MainWindow(QMainWindow):
         if self.hl2vr_entry.text():
             self.load_addons_list()
 
-    def save_config(self):
+    def save_config(self):      
         config.save_config(
             self.url_entry.text().strip(),
-            self.single_addon_entry.text().strip(), 
+            self.single_addon_entry.text().strip(),
             self.hl2vr_entry.text().strip(),
             self.hl2_entry.text().strip(),
             self.check_files_checkbox.isChecked(),
             self.auto_check_maps_checkbox.isChecked(),
             self.embed_episodes_checkbox.isChecked(),
-            translator.current_language
+            translator.current_language,
+            self.check_updates_startup_checkbox.isChecked()
         )
 
     def on_language_changed(self):
@@ -2473,6 +2495,117 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, tr("Error"), tr("Error saving order: {}").format(str(e)))
             # In case of error, reload list from file
             self.load_addons_list()
+    
+    def check_for_updates_startup(self):
+        """Check for updates on startup in a separate thread (silent mode)"""
+        from PyQt5.QtCore import QThread, pyqtSignal
+        
+        class UpdateCheckThread(QThread):
+            update_available = pyqtSignal(bool, str, object)
+            
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.parent = parent
+                
+            def run(self):
+                checker = UpdateChecker(__version__, "DZHonnee", "HL2-VR-Workshop-Extender")
+                has_update, latest_version, release_data = checker.check_for_updates()
+                self.update_available.emit(has_update, latest_version, release_data)
+        
+        self.update_thread = UpdateCheckThread(self)
+        self.update_thread.update_available.connect(self.handle_update_result)
+        self.update_thread.start()
+    
+    def handle_update_result(self, has_update, latest_version, release_data, show_no_update_message=False):
+        """Handle update check result (for both startup and manual checks)"""
+        if has_update:
+            # Show styled update dialog
+            self.show_update_dialog(latest_version, release_data)
+        elif show_no_update_message:  # Only show "no updates" message for manual checks
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.information(self, tr("No Updates"), tr("Application is up to date"))
+    
+    
+    def show_update_dialog(self, latest_version, release_data):
+        """Show styled dialog for update notification"""
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QFrame
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QFont
+        import webbrowser
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle(tr("Update Available"))
+        dialog.setModal(True)
+        dialog.setFixedSize(500, 400)  # Fixed size window
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)  # Remove help button (question mark)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # Title with bold font
+        title_label = QLabel(tr("New version available: {}").format(latest_version))
+        title_font = QFont()
+        title_font.setBold(True)
+        title_font.setPointSize(12)
+        title_label.setFont(title_font)
+        title_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title_label)
+        
+        # Separator line
+        separator1 = QFrame()
+        separator1.setFrameShape(QFrame.HLine)
+        separator1.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(separator1)
+        
+        # Current version info
+        current_version_label = QLabel(tr("Current version: {}").format(__version__))
+        current_version_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(current_version_label)
+        
+        # Release notes
+        if release_data and release_data.get('body'):
+            release_notes_label = QLabel(tr("Release Notes:"))
+            release_notes_label_font = QFont()
+            release_notes_label_font.setBold(True)
+            release_notes_label.setFont(release_notes_label_font)
+            layout.addWidget(release_notes_label)
+            
+            release_notes_text = QTextEdit()
+            release_notes_text.setPlainText(release_data.get('body', ''))
+            release_notes_text.setReadOnly(True)
+            layout.addWidget(release_notes_text)
+        
+        # Separator line
+        separator2 = QFrame()
+        separator2.setFrameShape(QFrame.HLine)
+        separator2.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(separator2)
+        
+        # Buttons layout
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addStretch()  # Add stretch to align buttons to the right
+        
+        later_btn = QPushButton(tr("Later"))
+        open_release_btn = QPushButton(tr("Open Release Page"))
+        
+        # Set default button
+        open_release_btn.setDefault(True)
+        
+        buttons_layout.addWidget(later_btn)
+        buttons_layout.addWidget(open_release_btn)
+        
+        layout.addLayout(buttons_layout)
+        
+        # Connect button signals
+        open_release_btn.clicked.connect(lambda: webbrowser.open(
+            release_data.get('html_url', 'https://github.com/DZHonnee/HL2-VR-Workshop-Extender/releases')))
+        later_btn.clicked.connect(dialog.reject)
+        
+        # Show the dialog
+        dialog.exec_()
+    
+    def on_check_updates_startup_changed(self, state):
+        """Handle changes to the 'check updates on startup' checkbox"""
+        self.save_config()
 
     def start_delay_timer(self, delay_timer):
         delay_timer.start(300)

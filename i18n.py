@@ -67,6 +67,8 @@ class Translator(QObject):
 "Help": "Справка",
 "Search:": "Поиск:",
 "Resync": "Повторить синхронизацию",
+"Check for Updates": "Проверить обновления",
+"Check for updates on startup": "Проверять обновления при запуске",
 "Name": "Название",
 "Link": "Ссылка", 
 "Folder": "Папка",
@@ -563,8 +565,19 @@ class Translator(QObject):
 "Steam rate limit exceeded": "Превышен лимит запросов Steam",
 
 "Steam request limit exceeded! Open Help > Recommendations and issues, scroll down to \"Steam request limit exceeded\" paragraph for more details and solutions."
-: "Превышен лимит запросов Steam! Откройте Справка > Рекомендации и проблемы, прокрутите вниз до раздела \"Превышен лимит запросов Steam\" для получения подробной информации и решений."
+: "Превышен лимит запросов Steam! Откройте Справка > Рекомендации и проблемы, прокрутите вниз до раздела \"Превышен лимит запросов Steam\" для получения подробной информации и решений.",
 
+"Update Available": "Доступно обновление",
+"New version available: {}": "Доступна новая версия: {}",
+"Current version: {}": "Текущая версия: {}",
+"Release Notes:": "Примечания к выпуску:",
+"Later": "Позже",
+"Open Release Page": "Открыть страницу релиза",
+"Could not get version information from GitHub": "Не удалось получить информацию о версии с GitHub",
+"Application is up to date": "Версия приложения актуальна",
+"New version available: {}": "Доступна новая версия: {}",
+"Error checking for updates: {}": "Ошибка проверки обновлений: {}",
+"Unexpected error during update check: {}": "Непредвиденная ошибка при проверке обновлений: {}"
             }
             
         except Exception as e:
