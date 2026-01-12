@@ -1,7 +1,7 @@
 # Addon list management
 
 ## Changing order
-<br><b>(!) Higher position - higher priority</b>
+<b>(!) Higher position - higher priority</b>
 <br><br><b>Click on an addon to select it for moving.</b>
 <b>Only one addon can be moved at a time.</b>
 <ul>
@@ -24,4 +24,5 @@
     <li><b>Check maps</b> - see "<b>Maps</b>" tab</li>
     <li><b>Resync (⟳)</b> - synchronize current list with Episodes</li>
     <li><b>Save/Load list</b> - saves current addon list to .txt file, loading will replace the current list</li>
+
 </ul>
