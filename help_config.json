@@ -1,0 +1,46 @@
+{
+  "tabs": [
+    {
+      "id": "overview",
+      "title": {
+        "en": "Overview",
+        "ru": "Обзор"
+      }
+    },
+    {
+      "id": "mounting",
+      "title": {
+        "en": "Mounting addons",
+        "ru": "Встраивание аддонов"
+      }
+    },
+    {
+      "id": "management",
+      "title": {
+        "en": "List management",
+        "ru": "Управление списком"
+      }
+    },
+    {
+      "id": "maps",
+      "title": {
+        "en": "Maps",
+        "ru": "Карты"
+      }
+    },
+    {
+      "id": "recommendations",
+      "title": {
+        "en": "Recommendations and issues",
+        "ru": "Рекомендации и проблемы"
+      }
+    },
+    {
+      "id": "anniversary",
+      "title": {
+        "en": "Anniversary Update",
+        "ru": "Anniversary Update"
+      }
+    }
+  ]
+}
