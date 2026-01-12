@@ -899,6 +899,10 @@ def extract_map_vpk(vpk_path, output_dir, progress_callback=None, check_cancel=N
                 return False, tr("Error extracting {}: {}").format(filepath, e)
         
         log.info(tr("Map extracted: {}/{} files").format(extracted_count, total_files))
+        
+        # After successful extraction, remove specified folders and files
+        cleanup_extracted_map(output_dir)
+        
         return True, tr("Successfully extracted {} files").format(extracted_count)
         
     except Exception as e:
@@ -1161,3 +1165,46 @@ def reverse_addons_order(gameinfo_path):
     except Exception as e:
         log.error(f"Error reversing addons order: {str(e)}")
         return False, f"Error reversing addons order: {str(e)}"
+
+
+def cleanup_extracted_map(extracted_dir):
+    """
+    Удаляет указанные папки и файлы из распакованной папки аддона-карты
+    """
+    log.info(tr("Cleaning problematic files..."))
+    
+    items_to_remove = [
+        'bin',
+        os.path.join('cfg', 'config.cfg'),
+        'gameinfo.txt',
+        'gamestate.txt',
+        os.path.join('cfg', 'videoconfig.cfg'),
+        'survival_scenes.txt',
+        'steam.inf',
+        'glbaseshaders.cfg',
+        'albedo.tga',
+        'demoheader.tmp',
+        'stats.txt',
+        'textwindow_temp.html',
+        os.path.join('cfg', 'banned_user.cfg'),
+        os.path.join('cfg', 'banned_ip.cfg'),
+        os.path.join('cfg', 'pet.txt'),
+        os.path.join('scripts', 'kb_def.lst'),
+        os.path.join('scripts', 'settings.scr')
+    ]
+    
+    for item in items_to_remove:
+        item_path = os.path.join(extracted_dir, item)
+        
+        if os.path.isdir(item_path):
+            try:
+                shutil.rmtree(item_path)
+                log.info(tr("Removed directory: {}").format(item_path))
+            except Exception as e:
+                log.warning(tr("Failed to remove directory {}: {}").format(item_path, e))
+        elif os.path.isfile(item_path):
+            try:
+                os.remove(item_path)
+                log.info(tr("Removed file: {}").format(item_path))
+            except Exception as e:
+                log.warning(tr("Failed to remove file {}: {}").format(item_path, e))

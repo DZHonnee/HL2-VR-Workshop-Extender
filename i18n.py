@@ -24,6 +24,13 @@ class Translator(QObject):
 
 
 "Error": "Ошибка",
+"Close": "Закрыть",
+"Loading help content...": "Загрузка содержимого справки...",
+"Error loading help content": "Ошибка загрузки содержимого справки",
+"Could not load help content from GitHub. Error details:": "Не удалось загрузить содержимое справки с GitHub. Сведения об ошибке:",
+"Please check your internet connection and try again later.": "Пожалуйста, проверьте подключение к Интернету и повторите попытку позже.",
+"Could not load configuration from GitHub:": "Не удалось загрузить конфигурацию с GitHub:",
+"Error loading help configuration:": "Ошибка загрузки конфигурации справки:",
 "Extraction cancelled": "Распаковка отменена",
 "Mounting confirmation": "Подтверждение встраивания",
 "Success": "Успех",
@@ -65,6 +72,7 @@ class Translator(QObject):
 "Checking Episodes...": "Проверка Эпизодов...",
 "Mount Anniversary Update content": "Встроить контент Anniversary update",
 "Help": "Справка",
+"Close": "Закрыть",
 "Search:": "Поиск:",
 "Resync": "Повторить синхронизацию",
 "Check for Updates": "Проверить обновления",
@@ -577,8 +585,14 @@ class Translator(QObject):
 "Application is up to date": "Версия приложения актуальна",
 "New version available: {}": "Доступна новая версия: {}",
 "Error checking for updates: {}": "Ошибка проверки обновлений: {}",
-"Unexpected error during update check: {}": "Непредвиденная ошибка при проверке обновлений: {}"
-            }
+"Unexpected error during update check: {}": "Непредвиденная ошибка при проверке обновлений: {}",
+"Removed directory: {}": "Удалена папка: {}",
+"Failed to remove directory {}: {}": "Не удалось удалить папку {}: {}",
+"Removed file: {}": "Удален файл: {}",
+"Failed to remove file {}: {}": "Не удалось удалить файл {}: {}",
+"Cleaning problematic files...": "Очистка проблемных файлов..."
+}
+
             
         except Exception as e:
             log.error(f"Error loading translations: {e}")

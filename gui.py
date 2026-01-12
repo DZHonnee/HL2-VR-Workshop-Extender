@@ -18,7 +18,7 @@ from i18n import tr, translator
 import re
 import webbrowser
 import subprocess
-from help_dialog import HelpDialog
+from web_help_dialog import WebHelpDialog
 from update_checker import UpdateChecker
 from version import __version__
 
@@ -3364,7 +3364,7 @@ class MainWindow(QMainWindow):
     def show_help(self):
         """Shows help dialog"""
         try:
-            help_dialog = HelpDialog(self)
+            help_dialog = WebHelpDialog(self)
             help_dialog.exec_()
         except ImportError as e:
             QMessageBox.critical(self, tr("Error"), tr("Failed to load help module: {}").format(e))
