@@ -9,12 +9,12 @@ This usually doesn't apply to maps that replace original HL2 maps.</li>
 
 <li>For more correct map functionality, install the <b>Anniversary Update</b> content (see tab).</li>
 
-<li>Don't mount more than one campaign addon to avoid errors due to file conflicts.</li>
+<li>Don't mount more than one campaign addon to avoid errors due to file conflicts. Otherwise just place the mod that you currently play on top.</li>
 </ul>
 
 <h2>Issues</h2>
 <ul>
-<li>Some campaign addons lack a background map for the menu, so you'll have to use the desktop for menu navigation.</li>
+<li>Some mods lack a background map for the menu, so you'll have to use the desktop for menu navigation.</li>
 
 <li>If the mod doesn't have chapter separation, you'll have to load the first map through the console. Just type "map" in the console and your custom maps should appear under the text field.</li>
 
@@ -55,4 +55,5 @@ This error may occur when you try to mount installed addons or check maps.
 
 
 </ul>
+
 
