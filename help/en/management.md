@@ -5,8 +5,8 @@
 <br><br><b>Click on an addon to select it for moving.</b>
 <b>Only one addon can be moved at a time.</b>
 <ul>
-    <li><b>< ></b> - move by one position</li>
-    <li><b>|<< >>|</b> - move to the top/bottom of the list</li>
+    <li><b>&lt; &gt;</b> - move by one position</li>
+    <li><b>|&lt;&lt; &gt;&gt;|</b> - move to the top/bottom of the list</li>
     <li><b>Hold buttons for continuous movement</b></li>
 </ul>
 
@@ -26,3 +26,4 @@
     <li><b>Save/Load list</b> - saves current addon list to .txt file, loading will replace the current list</li>
 
 </ul>
+
