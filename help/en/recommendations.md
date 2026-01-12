@@ -4,29 +4,29 @@
 Problems may occur when the mod has its own resources, scripts, configs, etc., i.e., a full-fledged mod with a campaign. 
 You can check for such folders by opening the addon folder if it was unpacked. But even so, many mods will be at least playable.</li>
 
-<br><li><b>Launch campaign addons only through Episode 2 VR</b>, as they may use Episode content.
+<li><b>Launch campaign addons only through Episode 2 VR</b>, as they may use Episode content.
 This usually doesn't apply to maps that replace original HL2 maps.</li>
 
-<br><li>For more correct map functionality, install the <b>Anniversary Update</b> content (see tab).</li>
+<li>For more correct map functionality, install the <b>Anniversary Update</b> content (see tab).</li>
 
-<br><li>Don't mount more than one campaign addon to avoid errors due to file conflicts.</li>
+<li>Don't mount more than one campaign addon to avoid errors due to file conflicts.</li>
 </ul>
 
 <h2>Issues</h2>
 <ul>
-<br><li>Some campaign addons lack a background map for the menu, so you'll have to use the desktop for menu navigation.</li>
+<li>Some campaign addons lack a background map for the menu, so you'll have to use the desktop for menu navigation.</li>
 
-<br><li>If the mod doesn't have chapter separation, you'll have to load the first map through the console. Just type "map" in the console and your custom maps should appear under the text field.</li>
+<li>If the mod doesn't have chapter separation, you'll have to load the first map through the console. Just type "map" in the console and your custom maps should appear under the text field.</li>
 
-<br><li>If the mod has some custom interfaces, they likely won't work correctly (e.g., radio messages in Hatch18 or MINERVA mods).</li>
+<li>If the mod has some custom interfaces, they likely won't work correctly (e.g., radio messages in Hatch18 or MINERVA mods).</li>
 
-<br><li>Some maps may have broken skyboxes (skybox looks stretched).</li>
+<li>Some maps may have broken skyboxes (skybox looks stretched).</li>
 
-<br><li>On some maps, fog may look incorrect (too bright, standing out against the sky).</li>
+<li>On some maps, fog may look incorrect (too bright, standing out against the sky).</li>
 
-<br><li>There's always a small chance of "A.I. Disabled" error appearing.</li>
+<li>There's always a small chance of "A.I. Disabled" error appearing.</li>
 
-<br><li>Some mods may not launch at all. The program already deletes files that commonly cause this problem, but if it still happens then try to open the addon's folder and delete all files <b>except folders</b> (materials, models, scripts, etc.), if they exist.
+<li>Some mods may not launch at all. The program already deletes files that commonly cause this problem, but if it still happens then try to open the addon's folder and delete all files <b>except folders</b> (materials, models, scripts, etc.), if they exist.
 </li>
 </ul>
 
@@ -55,3 +55,4 @@ This error may occur when you try to mount installed addons or check maps.
 
 
 </ul>
+
