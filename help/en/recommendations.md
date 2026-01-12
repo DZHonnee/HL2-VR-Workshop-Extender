@@ -4,7 +4,7 @@
 Problems may occur when the mod has its own resources, scripts, configs, etc., i.e., a full-fledged mod with a campaign. 
 You can check for such folders by opening the addon folder if it was unpacked. But even so, many mods will be at least playable.</li>
 
-<br><li>If you're going to play campaign addons, <b>launch them only through Episode 2 VR</b>, as they may use Episode content.
+<br><li><b>Launch campaign addons only through Episode 2 VR</b>, as they may use Episode content.
 This usually doesn't apply to maps that replace original HL2 maps.</li>
 
 <br><li>For more correct map functionality, install the <b>Anniversary Update</b> content (see tab).</li>
@@ -14,14 +14,11 @@ This usually doesn't apply to maps that replace original HL2 maps.</li>
 
 <h2>Issues</h2>
 <ul>
-<li>Some campaign addons will reset your VR settings every time you enter the game and prompt you to go through initial setup.
-Solved by deleting the following file in the addon folder: <b>*ID*\\workshop_dir\\cfg\\config.cfg</b></li>
-
 <br><li>Some campaign addons lack a background map for the menu, so you'll have to use the desktop for menu navigation.</li>
 
-<br><li>If the mod doesn't have chapter separation, you'll have to load the first map through the console.</li>
+<br><li>If the mod doesn't have chapter separation, you'll have to load the first map through the console. Just type "map" in the console and your custom maps should appear under the text field.</li>
 
-<br><li>If the mod has some custom interfaces, they likely won't work correctly (e.g., radio messages in Hatch18 mod).</li>
+<br><li>If the mod has some custom interfaces, they likely won't work correctly (e.g., radio messages in Hatch18 or MINERVA mods).</li>
 
 <br><li>Some maps may have broken skyboxes (skybox looks stretched).</li>
 
@@ -29,7 +26,7 @@ Solved by deleting the following file in the addon folder: <b>*ID*\\workshop_dir
 
 <br><li>There's always a small chance of "A.I. Disabled" error appearing.</li>
 
-<br><li>Some mods may not launch at all. To potentially fix this, open the addon's folder and delete all files except folders, if they exist.
+<br><li>Some mods may not launch at all. The program already deletes files that commonly cause this problem, but if it still happens then try to open the addon's folder and delete all files <b>except folders</b> (materials, models, scripts, etc.), if they exist.
 </li>
 </ul>
 
@@ -37,7 +34,7 @@ Solved by deleting the following file in the addon folder: <b>*ID*\\workshop_dir
 <p>
 This error may occur when you try to mount installed addons or check maps.
 </p>
-<p>What does it mean?</p>
+<p><b>What does it mean?</b></p>
 
 <ul>
 <li>Steam is currently limiting requests to its servers due to high load, likely caused by an event or Steam just having trouble.</li>
@@ -45,7 +42,7 @@ This error may occur when you try to mount installed addons or check maps.
 <li>Due to these limitations, you currently won't be able to mount installed addons or check maps in your addon list.</li>
 </ul>
 
-<p>What to do?</p>
+<p><b>What to do?</b></p>
 <ul>
 <li>Make sure you have regained access to Workshop item pages.</li>
 <li>Disable automatic map checking.</li>
@@ -55,5 +52,6 @@ This error may occur when you try to mount installed addons or check maps.
 <br>2. Click 'Save to collection' and save to a new collection;
 <br>3. Open the collection, change visibility to 'Unlisted' and wait until the 'This item is awaiting analysis...' notice disappears;
 <br>4. Mount the collection. Verify that the addon order matches the list in HL2.</li>
+
 
 </ul>
