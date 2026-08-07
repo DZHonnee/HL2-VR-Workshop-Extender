@@ -25,6 +25,7 @@ The tool doesn't download anything, but mounts already downloaded Steam addons. 
 - Maintaining map addons functionality
 - Saving and loading addon lists
 - Installing Anniversary Update content
+- (NEW) Mounting non-workshop (external) mods alongside the workshop ones
 
 ## Using the Tool
 
@@ -34,6 +35,7 @@ The tool doesn't download anything, but mounts already downloaded Steam addons. 
    - **Mount Installed** - Use your list of installed addons from HL2
    - **Mount Collection** - Paste a Steam workshop collection URL
    - **Mount Addon** - Paste an individual addon URL
+   - **Scan Folder** - Add external mods from a folder
 3. **Manage** - Use the interface to reorder, remove, or verify addons
 
 ### Map Addons
