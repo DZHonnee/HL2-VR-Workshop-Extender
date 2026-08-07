@@ -19,7 +19,7 @@ Works ONLY with the Half-Life 2 workshop!</p>
     <li>Maintaining map addons functionality</li>
     <li>Saving and loading addon lists</li>
     <li>Installing Anniversary Update content</li>
-    <li>(NEW) Mounting non-workshop (external) mods alongside the workshop ones</li>
+    <li>Mounting non-workshop (external) mods alongside the workshop ones</li>
 </ul>
 
 <p>Check the following tabs for explanations of all features.</p>
