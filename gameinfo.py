@@ -69,8 +69,10 @@ def update_gameinfo(gameinfo_path, addons_with_paths):
         # Create lines to insert between markers
         insert_lines = []
         for vpk_path, title in all_addons_with_paths:
+            # Normalize path to use forward slashes consistently
+            normalized_path = vpk_path.replace('\\', '/')
             insert_lines.append(f'\t\t// {title}\n')
-            insert_lines.append(f'\t\tgame+mod\t\t"{vpk_path}"\n')
+            insert_lines.append(f'\t\tgame+mod\t\t"{normalized_path}"\n')
             insert_lines.append('\n')
         
         # Replace content between markers
@@ -118,8 +120,10 @@ def update_gameinfo_order(gameinfo_path, addons_with_paths):
         # Create lines to insert between markers
         insert_lines = []
         for vpk_path, title in addons_with_paths:
+            # Normalize path to use forward slashes consistently
+            normalized_path = vpk_path.replace('\\', '/')
             insert_lines.append(f'\t\t// {title}\n')
-            insert_lines.append(f'\t\tgame+mod\t\t"{vpk_path}"\n')
+            insert_lines.append(f'\t\tgame+mod\t\t"{normalized_path}"\n')
             insert_lines.append('\n')
         
         # Replace content between markers

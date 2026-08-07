@@ -9,7 +9,6 @@ from i18n import tr, translator
 import gameinfo
 import requests
 
-
 def read_addons_from_gameinfo(gameinfo_path):
     """
     Reads addons list from gameinfo.txt between markers
@@ -78,7 +77,13 @@ def extract_addon_id(path):
     if match:
         return match.group(1)
     
-    return tr("Unknown")
+    # For VPK files, use the filename without extension
+    if path.lower().endswith('.vpk'):
+        return os.path.splitext(os.path.basename(path))[0]
+    
+    # For folder mods, extract the folder name from the path string as ID (regardless of whether it exists)
+    # Get the folder name from the path string
+    return os.path.basename(path)
 
 def remove_addons_from_gameinfo(gameinfo_path, addon_ids):
     """
@@ -106,15 +111,41 @@ def remove_addons_from_gameinfo(gameinfo_path, addon_ids):
                     clean_line = line.strip()
                     # Find comment line containing addon title (with or without prefix)
                     if clean_line.startswith('//') and (addon['title'] in clean_line or addon['title'].replace("MAP   |   ", "") in clean_line):
-                        # Check next line for path
-                        if i + 1 < len(lines) and (addon['path'] in lines[i + 1] or addon['path'].replace('workshop_dir', 'workshop_dir.vpk') in lines[i + 1] or addon['path'].replace('workshop_dir.vpk', 'workshop_dir') in lines[i + 1]):
-                            lines_to_remove.add(i)    # Comment
-                            lines_to_remove.add(i + 1)  # Path
-                            # Check if there's empty line after
-                            if i + 2 < len(lines) and lines[i + 2].strip() == '':
-                                lines_to_remove.add(i + 2)
+                        # Check next line for path - enhanced to handle all types of paths properly
+                        if i + 1 < len(lines):
+                            next_line = lines[i + 1]
                             
-                            removed_titles.append(addon['title'])
+                            # Check if addon path is in the next line - multiple strategies
+                            path_found = False
+                            
+                            # Strategy 1: Direct inclusion check
+                            if addon['path'] in next_line:
+                                path_found = True
+                            
+                            # Strategy 2: Standard workshop path conversions
+                            elif (addon['path'].replace('workshop_dir', 'workshop_dir.vpk') in next_line or
+                                  addon['path'].replace('workshop_dir.vpk', 'workshop_dir') in next_line):
+                                path_found = True
+                            
+                            # Strategy 3: Normalize path separators (forward/backward slashes)
+                            elif addon['path'].replace('\\', '/') in next_line.replace('\\', '/'):
+                                path_found = True
+                            elif addon['path'].replace('/', '\\') in next_line.replace('/', '\\'):
+                                path_found = True
+                            
+                            # Strategy 4: Check for basename if path is complex
+                            elif os.path.basename(addon['path']) in next_line:
+                                # Extra validation to make sure it's the right path
+                                path_found = True
+                            
+                            if path_found:
+                                lines_to_remove.add(i)    # Comment
+                                lines_to_remove.add(i + 1)  # Path
+                                # Check if there's empty line after
+                                if i + 2 < len(lines) and lines[i + 2].strip() == '':
+                                    lines_to_remove.add(i + 2)
+                                
+                                removed_titles.append(addon['title'])
                         break
         
         # Remove lines and create new list
@@ -189,136 +220,240 @@ def validate_addon_markers(gameinfo_path):
         return "no_markers"
 
 
+def _copy_file_if_changed(src_path, dst_path):
+    """Copy file if source exists and is different from destination.
+    Returns True if file was copied, False otherwise."""
+    if not os.path.exists(src_path):
+        return False
+    
+    # If destination doesn't exist -> copy
+    if not os.path.exists(dst_path):
+        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        shutil.copy2(src_path, dst_path)
+        return True
+    
+    # Compare by size and modification time (fast)
+    src_stat = os.stat(src_path)
+    dst_stat = os.stat(dst_path)
+    
+    if src_stat.st_size != dst_stat.st_size or src_stat.st_mtime != dst_stat.st_mtime:
+        shutil.copy2(src_path, dst_path)
+        return True
+    
+    return False
+
+
+def _sync_folder(src_dir, dst_dir, items_to_sync):
+    """
+    Syncs specified files/folders from src to dst.
+    Returns number of files actually copied.
+    """
+    if not os.path.exists(src_dir):
+        log.warning(tr("Source directory not found: {}").format(src_dir))
+        return 0
+    
+    os.makedirs(dst_dir, exist_ok=True)
+    
+    copied_count = 0
+    
+    for item in items_to_sync:
+        src_path = os.path.join(src_dir, item)
+        dst_path = os.path.join(dst_dir, item)
+        
+        if not os.path.exists(src_path):
+            continue
+        
+        if os.path.isdir(src_path):
+            # For folders: copy entire directory structure with file-level sync
+            for root, dirs, files in os.walk(src_path):
+                rel_path = os.path.relpath(root, src_dir)
+                dst_subdir = os.path.join(dst_dir, rel_path)
+                os.makedirs(dst_subdir, exist_ok=True)
+                
+                for file in files:
+                    src_file = os.path.join(root, file)
+                    dst_file = os.path.join(dst_subdir, file)
+                    if _copy_file_if_changed(src_file, dst_file):
+                        copied_count += 1
+        else:
+            # For files: copy if changed
+            if _copy_file_if_changed(src_path, dst_path):
+                copied_count += 1
+    
+    # Clean up old files in destination that no longer exist in source
+    _cleanup_stale_files(dst_dir, items_to_sync)
+    
+    return copied_count
+
+
+def _sync_full_folder(src_dir, dst_dir):
+    """
+    Sync entire folder content (for resource folders).
+    Returns number of files actually copied.
+    """
+    if not os.path.exists(src_dir):
+        return 0
+    
+    os.makedirs(dst_dir, exist_ok=True)
+    
+    copied_count = 0
+    
+    # Get all files in source
+    src_files = set()
+    for root, dirs, files in os.walk(src_dir):
+        rel_path = os.path.relpath(root, src_dir)
+        for file in files:
+            src_files.add(os.path.join(rel_path, file) if rel_path != '.' else file)
+    
+    # Copy missing or changed files
+    for root, dirs, files in os.walk(src_dir):
+        rel_path = os.path.relpath(root, src_dir)
+        dst_subdir = os.path.join(dst_dir, rel_path) if rel_path != '.' else dst_dir
+        os.makedirs(dst_subdir, exist_ok=True)
+        
+        for file in files:
+            src_file = os.path.join(root, file)
+            dst_file = os.path.join(dst_subdir, file)
+            if _copy_file_if_changed(src_file, dst_file):
+                copied_count += 1
+    
+    # Remove files in destination that are no longer in source
+    for root, dirs, files in os.walk(dst_dir, topdown=False):
+        rel_path = os.path.relpath(root, dst_dir)
+        for file in files:
+            file_rel = os.path.join(rel_path, file) if rel_path != '.' else file
+            if file_rel not in src_files:
+                try:
+                    os.remove(os.path.join(root, file))
+                    log.info(tr("Removed stale file: {}").format(os.path.join(root, file)))
+                except Exception as e:
+                    log.warning(tr("Failed to remove stale file: {}").format(e))
+        
+        # Remove empty directories
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            try:
+                if not os.listdir(dir_path):
+                    os.rmdir(dir_path)
+            except Exception:
+                pass
+    
+    return copied_count
+
+
+def _cleanup_stale_files(dst_dir, items_to_sync):
+    """Removes files/folders from dst_dir that are not in items_to_sync"""
+    if not os.path.exists(dst_dir):
+        return
+    
+    # Build set of all paths that should exist in the destination
+    valid_paths = set()
+    for item in items_to_sync:
+        dst_path = os.path.join(dst_dir, item)
+        if os.path.exists(dst_path):
+            valid_paths.add(os.path.normpath(dst_path))
+            if os.path.isdir(dst_path):
+                for root, dirs, files in os.walk(dst_path):
+                    for file in files:
+                        valid_paths.add(os.path.normpath(os.path.join(root, file)))
+    
+    # Remove files not in the valid set
+    for root, dirs, files in os.walk(dst_dir, topdown=False):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if os.path.normpath(file_path) not in valid_paths:
+                try:
+                    os.remove(file_path)
+                    log.info(tr("Removed stale file: {}").format(file_path))
+                except Exception as e:
+                    log.warning(tr("Failed to remove stale file {}: {}").format(file_path, e))
+        
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            if os.path.normpath(dir_path) not in valid_paths:
+                try:
+                    if not os.listdir(dir_path):  # Check if empty
+                        os.rmdir(dir_path)
+                        log.info(tr("Removed stale directory: {}").format(dir_path))
+                except Exception as e:
+                    log.warning(tr("Failed to remove stale directory {}: {}").format(dir_path, e))
+
+
 def create_vr_essential_backup(hl2vr_path):
     """
-    Creates copies of important VR mod files in the custom/vr_essential_resources folder
-    Returns a tuple (success, message)
+    Creates or updates copies of important VR mod files in the custom/vr_essential_resources folder.
+    Only copies files that are missing or have changed (by size + mtime).
+    Logs only when actual changes occur.
     """
+    copied_count = 0
+    
     try:
-        # Path to AnniversaryContent (assumed to be in the same folder as the program)
-        anniversary_content_path = os.path.join(os.path.dirname(__file__), "AnniversaryContent")
-        
-        # ===== FOR HLVR =====
+        # ----- HLVR -----
         hlvr_backup_path = os.path.join(hl2vr_path, "hlvr", "custom", "vr_essential_resources")
+        hlvr_scripts_src = os.path.join(hl2vr_path, "hlvr", "scripts")
         
-        if not os.path.exists(hlvr_backup_path):
-            log.info(tr("Copying essential VR files to custom (hlvr)"))
-            os.makedirs(hlvr_backup_path, exist_ok=True)
-            
-            # Copy scripts (only specified files)
-            hlvr_scripts_src = os.path.join(hl2vr_path, "hlvr", "scripts")
-            hlvr_scripts_dst = os.path.join(hlvr_backup_path, "scripts")
-            
-            if os.path.exists(hlvr_scripts_src):
-                os.makedirs(hlvr_scripts_dst, exist_ok=True)
-                
-                # List of files and folders to copy from scripts
-                scripts_to_copy = [
-                    "colorcorrection",
-                    "screens",
-                    "bhaptics_effects.txt",
-                    "game_sounds_weapons.txt", 
-                    "HudAnimations.txt",
-                    "HudLayout.res",
-                    "rumble_effects.txt",
-                    "vgui_screens.txt",
-                    "weapon_357.txt",
-                    "weapon_ar2.txt",
-                    "weapon_bugbait.txt",
-                    "weapon_crossbow.txt",
-                    "weapon_crowbar.txt",
-                    "weapon_cubemap.txt",
-                    "weapon_frag.txt",
-                    "weapon_physcannon.txt",
-                    "weapon_physgun.txt",
-                    "weapon_pistol.txt",
-                    "weapon_rpg.txt",
-                    "weapon_shotgun.txt",
-                    "weapon_smg1.txt"
-                ]
-                
-                for item in scripts_to_copy:
-                    src_path = os.path.join(hlvr_scripts_src, item)
-                    dst_path = os.path.join(hlvr_scripts_dst, item)
-                    
-                    if os.path.exists(src_path):
-                        if os.path.isdir(src_path):
-                            shutil.copytree(src_path, dst_path)
-                        else:
-                            shutil.copy2(src_path, dst_path)
-            
-            # Copy resource (entire folder)
-            hlvr_resource_src = os.path.join(hl2vr_path, "hlvr", "resource")
-            hlvr_resource_dst = os.path.join(hlvr_backup_path, "resource")
-            
-            if os.path.exists(hlvr_resource_src):
-                shutil.copytree(hlvr_resource_src, hlvr_resource_dst)
-            
-            # Copy shaders from AnniversaryContent
-            anniversary_shaders_src = os.path.join(anniversary_content_path, "hlvr", "shaders")
-            hlvr_shaders_dst = os.path.join(hlvr_backup_path, "shaders")
-            
-            if os.path.exists(anniversary_shaders_src):
-                shutil.copytree(anniversary_shaders_src, hlvr_shaders_dst)
+        scripts_to_copy = [
+            "colorcorrection",
+            "screens",
+            "bhaptics_effects.txt",
+            "game_sounds_weapons.txt",
+            "HudAnimations.txt",
+            "HudLayout.res",
+            "rumble_effects.txt",
+            "vgui_screens.txt",
+            "weapon_357.txt",
+            "weapon_ar2.txt",
+            "weapon_bugbait.txt",
+            "weapon_crossbow.txt",
+            "weapon_crowbar.txt",
+            "weapon_cubemap.txt",
+            "weapon_frag.txt",
+            "weapon_physcannon.txt",
+            "weapon_physgun.txt",
+            "weapon_pistol.txt",
+            "weapon_rpg.txt",
+            "weapon_shotgun.txt",
+            "weapon_smg1.txt"
+        ]
         
-        # ===== FOR EPISODICVR =====
-        episodicvr_backup_path = os.path.join(hl2vr_path, "episodicvr", "custom", "vr_essential_resources")
+        # Sync scripts
+        copied_count += _sync_folder(hlvr_scripts_src, os.path.join(hlvr_backup_path, "scripts"), scripts_to_copy)
         
-        if not os.path.exists(episodicvr_backup_path):
-            episodicvr_path = os.path.join(hl2vr_path, "episodicvr")
-            if os.path.exists(episodicvr_path):
-                log.info(tr("Copying essential VR files to custom (episodicvr)"))
-                os.makedirs(episodicvr_backup_path, exist_ok=True)
-                
-                # Copy resource (entire folder)
-                episodic_resource_src = os.path.join(episodicvr_path, "resource")
-                episodic_resource_dst = os.path.join(episodicvr_backup_path, "resource")
-                
-                if os.path.exists(episodic_resource_src):
-                    shutil.copytree(episodic_resource_src, episodic_resource_dst)
+        # Sync entire resource folder
+        hlvr_resource_src = os.path.join(hl2vr_path, "hlvr", "resource")
+        if os.path.exists(hlvr_resource_src):
+            copied_count += _sync_full_folder(hlvr_resource_src, os.path.join(hlvr_backup_path, "resource"))
         
-        # ===== FOR EP2VR =====
-        ep2vr_backup_path = os.path.join(hl2vr_path, "ep2vr", "custom", "vr_essential_resources")
+        # ----- EPISODICVR -----
+        episodicvr_path = os.path.join(hl2vr_path, "episodicvr")
+        if os.path.exists(episodicvr_path):
+            episodicvr_backup_path = os.path.join(hl2vr_path, "episodicvr", "custom", "vr_essential_resources")
+            episodic_resource_src = os.path.join(episodicvr_path, "resource")
+            if os.path.exists(episodic_resource_src):
+                copied_count += _sync_full_folder(episodic_resource_src, os.path.join(episodicvr_backup_path, "resource"))
         
-        if not os.path.exists(ep2vr_backup_path):
-            ep2vr_path = os.path.join(hl2vr_path, "ep2vr")
-            if os.path.exists(ep2vr_path):
-                log.info(tr("Copying essential VR files to custom (ep2vr)"))
-                os.makedirs(ep2vr_backup_path, exist_ok=True)
-                
-                # Copy resource (entire folder)
-                ep2_resource_src = os.path.join(ep2vr_path, "resource")
-                ep2_resource_dst = os.path.join(ep2vr_backup_path, "resource")
-                
-                if os.path.exists(ep2_resource_src):
-                    shutil.copytree(ep2_resource_src, ep2_resource_dst)
-                
-                # Copy only specified files from scripts
-                ep2_scripts_src = os.path.join(ep2vr_path, "scripts")
-                ep2_scripts_dst = os.path.join(ep2vr_backup_path, "scripts")
-                
-                if os.path.exists(ep2_scripts_src):
-                    os.makedirs(ep2_scripts_dst, exist_ok=True)
-                    
-                    # Only two files
-                    ep2_scripts_to_copy = [
-                        "hudlayout.res",
-                        "vgui_screens.txt"
-                    ]
-                    
-                    for file in ep2_scripts_to_copy:
-                        src_path = os.path.join(ep2_scripts_src, file)
-                        dst_path = os.path.join(ep2_scripts_dst, file)
-                        
-                        if os.path.exists(src_path):
-                            shutil.copy2(src_path, dst_path)
+        # ----- EP2VR -----
+        ep2vr_path = os.path.join(hl2vr_path, "ep2vr")
+        if os.path.exists(ep2vr_path):
+            ep2vr_backup_path = os.path.join(hl2vr_path, "ep2vr", "custom", "vr_essential_resources")
+            
+            ep2_resource_src = os.path.join(ep2vr_path, "resource")
+            if os.path.exists(ep2_resource_src):
+                copied_count += _sync_full_folder(ep2_resource_src, os.path.join(ep2vr_backup_path, "resource"))
+            
+            ep2_scripts_src = os.path.join(ep2vr_path, "scripts")
+            ep2_scripts_to_copy = ["hudlayout.res", "vgui_screens.txt"]
+            copied_count += _sync_folder(ep2_scripts_src, os.path.join(ep2vr_backup_path, "scripts"), ep2_scripts_to_copy)
         
-        log.info(tr("Essential VR files prioritized via custom folder"))
-        return True, tr("Essential VR files prioritized via custom folder")
+        # Only log if actual files were copied
+        if copied_count > 0:
+            log.info(tr("Essential VR files prioritized via custom folder ({} file(s) updated)").format(copied_count))
+        
+        return True, tr("VR essential files synchronized")
         
     except Exception as e:
-        log.error(f"Error copying VR resources: {str(e)}")
-        return False, f"Error copying VR resources: {str(e)}"
+        log.error(f"Error syncing VR resources: {str(e)}")
+        return False, f"Error syncing VR resources: {str(e)}"
 
 def add_addon_markers(gameinfo_path, hl2vr_path=None, hl2_path=None):
     """Adds start and end markers for addons block after custom folders"""
@@ -1169,10 +1304,12 @@ def reverse_addons_order(gameinfo_path):
 
 def cleanup_extracted_map(extracted_dir):
     """
-    Удаляет указанные папки и файлы из распакованной папки аддона-карты
+    Removes specified folders and files from the extracted map addon folder.
+    Also removes shader files that conflict with HL2:VR's own shaders.
     """
     log.info(tr("Cleaning problematic files..."))
     
+    # ----- 1. Standard cleanup items -----
     items_to_remove = [
         'bin',
         os.path.join('cfg', 'config.cfg'),
@@ -1190,7 +1327,8 @@ def cleanup_extracted_map(extracted_dir):
         os.path.join('cfg', 'banned_ip.cfg'),
         os.path.join('cfg', 'pet.txt'),
         os.path.join('scripts', 'kb_def.lst'),
-        os.path.join('scripts', 'settings.scr')
+        os.path.join('scripts', 'settings.scr'),
+        os.path.join('maps', 'graphs')
     ]
     
     for item in items_to_remove:
@@ -1208,3 +1346,278 @@ def cleanup_extracted_map(extracted_dir):
                 log.info(tr("Removed file: {}").format(item_path))
             except Exception as e:
                 log.warning(tr("Failed to remove file {}: {}").format(item_path, e))
+    
+    # ----- 2. Remove conflicting shader files -----
+    # Check if the mod has a shaders folder
+    mod_shaders_path = os.path.join(extracted_dir, 'shaders')
+    if os.path.exists(mod_shaders_path) and os.path.isdir(mod_shaders_path):
+        log.info(tr("Checking for conflicting shader files..."))
+        
+        # Load config to get hl2vr_path
+        try:
+            import config
+            app_config = config.load_config()
+            hl2vr_path = app_config.get("hl2vr_path", "")
+        except Exception as e:
+            log.warning(tr("Failed to load config for shader cleanup: {}").format(e))
+            hl2vr_path = ""
+        
+        if hl2vr_path and os.path.exists(hl2vr_path):
+            # VR shader directories to compare against
+            vr_shader_dirs = [
+                os.path.join(hl2vr_path, "hlvr", "shaders", "fxc"),
+                os.path.join(hl2vr_path, "hlvr", "shaders", "psh"),
+                os.path.join(hl2vr_path, "hlvr", "shaders", "vsh")
+            ]
+            
+            # Collect all VR shader filenames
+            vr_shader_filenames = set()
+            for vr_dir in vr_shader_dirs:
+                if os.path.exists(vr_dir) and os.path.isdir(vr_dir):
+                    for root, dirs, files in os.walk(vr_dir):
+                        for file in files:
+                            vr_shader_filenames.add(file)
+            
+            if vr_shader_filenames:
+                # Scan mod's shaders folder recursively and remove conflicting files
+                removed_shader_count = 0
+                for root, dirs, files in os.walk(mod_shaders_path):
+                    for file in files:
+                        if file in vr_shader_filenames:
+                            file_path = os.path.join(root, file)
+                            try:
+                                os.remove(file_path)
+                                removed_shader_count += 1
+                            except Exception as e:
+                                log.warning(tr("Failed to remove conflicting shader {}: {}").format(file_path, e))
+                
+                if removed_shader_count > 0:
+                    log.info(tr("Removed {} conflicting shader files").format(removed_shader_count))
+                
+                # Remove empty subdirectories in shaders folder
+                for root, dirs, files in os.walk(mod_shaders_path, topdown=False):
+                    for dir_name in dirs:
+                        dir_path = os.path.join(root, dir_name)
+                        try:
+                            if not os.listdir(dir_path):  # Check if empty
+                                os.rmdir(dir_path)
+                        except Exception as e:
+                            log.warning(tr("Failed to remove empty directory {}: {}").format(dir_path, e))
+                
+                # If shaders folder is empty after cleanup, remove it entirely
+                if os.path.exists(mod_shaders_path):
+                    try:
+                        if not os.listdir(mod_shaders_path):
+                            os.rmdir(mod_shaders_path)
+                            log.info(tr("Removed empty shaders folder: {}").format(mod_shaders_path))
+                    except Exception as e:
+                        log.warning(tr("Failed to remove empty shaders folder {}: {}").format(mod_shaders_path, e))
+            else:
+                log.info(tr("No VR shader files found to compare against"))
+        else:
+            log.warning(tr("HL2:VR path not configured or invalid, skipping shader cleanup"))
+
+
+def scan_mods_folder(mods_path, hl2vr_path):
+    """
+    Scans the mods folder and returns a list of found mods
+    Args:
+        mods_path: path to the mods folder
+        hl2vr_path: path to Half-Life 2 VR
+    Returns:
+        tuple (valid_mods, invalid_mods, error_message)
+        valid_mods: list of tuples (path, title) for valid mods
+        invalid_mods: list of tuples (path, title, reason) for invalid mods
+    """
+    try:
+        # Check that the mods folder path does not match the custom folder
+        custom_paths = [
+            os.path.join(hl2vr_path, "hlvr", "custom"),
+            os.path.join(hl2vr_path, "episodicvr", "custom"),
+            os.path.join(hl2vr_path, "ep2vr", "custom")
+        ]
+        
+        for custom_path in custom_paths:
+            if os.path.normpath(mods_path) == os.path.normpath(custom_path):
+                return [], [], tr("Mods folder path cannot be the same as custom folder") + ". " + tr("Create a separate folder for third-party mods")
+        
+        if not os.path.exists(mods_path):
+            return [], [], tr("Mods folder not found")
+        
+        valid_mods = []
+        invalid_mods = []
+        
+        # Get list of items in mods folder
+        for item in os.listdir(mods_path):
+            item_path = os.path.join(mods_path, item)
+            
+            # Check if element is a folder or VPK file
+            if os.path.isdir(item_path):
+                # This is a mod folder
+                # Check if folder is named "materials" - such addons are considered invalid
+                if item.lower() == "materials":
+                    invalid_mods.append((item_path, item, tr("Mod folder structure is invalid")))
+                else:
+                    mod_valid = is_valid_mod_folder(item_path)
+                    if mod_valid:
+                        # Use folder name as mod title
+                        mod_title = item
+                        valid_mods.append((item_path, mod_title))
+                    else:
+                        invalid_mods.append((item_path, item, tr("Mod folder structure is invalid")))
+            
+            elif item.lower().endswith('.vpk'):
+                # This is a VPK file
+                # Check if this is a multipart archive
+                base_name = item[:-4]  # Remove .vpk
+                if base_name.endswith('_dir'):
+                    # This is the main file of a multipart archive
+                    mod_title = base_name
+                    valid_mods.append((item_path, mod_title))
+                elif re.match(r'.+_\d+$', base_name):
+                    # This is a part of a multipart archive, skip
+                    continue
+                else:
+                    # This is a single VPK file
+                    mod_title = base_name
+                    valid_mods.append((item_path, mod_title))
+        
+        log.info(tr("Found {} mods in folder").format(len(valid_mods)))
+        return valid_mods, invalid_mods, ""
+    
+    except Exception as e:
+        log.error(f"Error scanning mods folder: {str(e)}")
+        return [], [], f"Error scanning mods folder: {str(e)}"
+
+
+def is_valid_mod_folder(folder_path):
+    """
+    Checks if the folder is a valid mod folder
+    Args:
+        folder_path: path to the mod folder
+    Returns:
+        bool: True if the folder contains at least one of the required elements
+    """
+    required_elements = [
+        'gameinfo.txt',
+        'bin',
+        'cfg',
+        'materials',
+        'models',
+        'sound',
+        'maps',
+        'scripts',
+        'particles',
+        'resource',
+        'scenes',
+        'downloadlists',
+        'media',
+        'shaders'
+    ]
+    
+    for element in required_elements:
+        element_path = os.path.join(folder_path, element)
+        if os.path.exists(element_path):
+            return True
+    
+    return False
+
+
+def prepare_mods_from_folder(mods_path, hl2vr_path, check_files=True):
+    """
+    Prepares mods from folder for mounting
+    Args:
+        mods_path: path to the mods folder
+        hl2vr_path: path to Half-Life 2 VR
+        check_files: whether to check file existence
+    Returns:
+        tuple (success, data, error_message)
+    """
+    try:
+        log.info(tr("Scanning folder for mods..."))
+        
+        # Scan mods folder
+        valid_mods, invalid_mods, error_message = scan_mods_folder(mods_path, hl2vr_path)
+        
+        if error_message:
+            return False, None, error_message
+        
+        if not valid_mods and not invalid_mods:
+            return False, None, tr("No mods found in folder")
+        
+        gameinfo_path = os.path.join(hl2vr_path, "hlvr", "gameinfo.txt")
+        
+        # Filter duplicates only among valid mods
+        valid_addons = [(get_mod_id(path), title) for path, title in valid_mods]
+        unique_addons, duplicates = filter_duplicate_addons(gameinfo_path, valid_addons)
+        
+        # Separate valid mods into unique and duplicates
+        unique_valid_mods = []
+        duplicate_valid_mods = []
+        
+        for mod_path, mod_title in valid_mods:
+            mod_id = get_mod_id(mod_path)
+            if any(uid == mod_id for uid, _ in unique_addons):
+                unique_valid_mods.append((mod_path, mod_title))
+            elif any(uid == mod_id for uid, _ in duplicates):
+                duplicate_valid_mods.append((mod_path, mod_title))
+        
+        # Check file existence if check is enabled
+        missing_addons = []
+        final_addons_with_paths = []
+        
+        if check_files:
+            for mod_path, mod_title in unique_valid_mods:
+                if os.path.exists(mod_path):
+                    final_addons_with_paths.append((mod_path, mod_title))
+                    
+                    # For mod folders apply cleanup, as for maps
+                    if os.path.isdir(mod_path):
+                        cleanup_extracted_map(mod_path)
+                else:
+                    mod_id = get_mod_id(mod_path)
+                    missing_addons.append((mod_id, mod_title, mod_path))
+        else:
+            # If file check is disabled, add all unique mods
+            final_addons_with_paths = unique_valid_mods
+            for mod_path, mod_title in unique_valid_mods:
+                if os.path.isdir(mod_path):
+                    cleanup_extracted_map(mod_path)
+        
+        # Prepare data for return
+        result_data = {
+            'unique_addons': [(get_mod_id(path), title) for path, title in final_addons_with_paths],
+            'duplicates': duplicates,
+            'missing_addons': missing_addons,
+            'invalid_addons': invalid_mods,
+            'addons_with_paths': final_addons_with_paths,
+            'gameinfo_path': gameinfo_path
+        }
+        
+        log.info(tr("Prepared {} external mods").format(len(final_addons_with_paths)))
+        return True, result_data, ""
+    
+    except Exception as e:
+        log.error(f"Error preparing external mods: {str(e)}")
+        return False, None, f"An unexpected error occurred:\n{str(e)}"
+
+
+
+
+def get_mod_id(mod_path):
+    """
+    Gets the mod identifier from the path
+    Args:
+        mod_path: path to the mod (folder or VPK file)
+    Returns:
+        str: mod identifier
+    """
+    if os.path.isdir(mod_path):
+        # For folders use folder name as identifier
+        return os.path.basename(mod_path)
+    elif mod_path.lower().endswith('.vpk'):
+        # For VPK files use filename without extension
+        return os.path.splitext(os.path.basename(mod_path))[0]
+    else:
+        # For other cases return basename
+        return os.path.basename(mod_path)

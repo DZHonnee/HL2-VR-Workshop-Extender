@@ -207,11 +207,11 @@ class CheckBoxTableWidgetItem(QTableWidgetItem):
         self.setCheckState(Qt.Checked if checked else Qt.Unchecked)
 
 class ConfirmAddonsDialog(QDialog):
-    def __init__(self, parent=None, title=tr("Mounting confirmation"), 
-                 summary="", addons_list="", duplicates_list="", 
+    def __init__(self, parent=None, title=tr("Mounting confirmation"),
+                 summary="", addons_list="", duplicates_list="",
                  missing_list="", failed_list="", dialog_type="add",
                  maps_list="", extracted_list="", extraction_results=None,
-                 enable_extract_button=True):
+                 enable_extract_button=True, invalid_list=""):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setModal(True)
@@ -224,11 +224,11 @@ class ConfirmAddonsDialog(QDialog):
         max_height = int(screen_geometry.height() * 0.7)
         self.setMaximumHeight(max_height)
         
-        self.setup_ui(summary, addons_list, duplicates_list, missing_list, failed_list, 
-                     dialog_type, maps_list, extracted_list, extraction_results, enable_extract_button)
+        self.setup_ui(summary, addons_list, duplicates_list, missing_list, failed_list,
+                     dialog_type, maps_list, extracted_list, extraction_results, enable_extract_button, invalid_list)
         
-    def setup_ui(self, summary, addons_list, duplicates_list, missing_list, failed_list, 
-                dialog_type, maps_list, extracted_list, extraction_results, enable_extract_button):
+    def setup_ui(self, summary, addons_list, duplicates_list, missing_list, failed_list,
+                dialog_type, maps_list, extracted_list, extraction_results, enable_extract_button, invalid_list):
         layout = QVBoxLayout(self)
 
         info_label = QLabel(summary)
@@ -388,6 +388,18 @@ class ConfirmAddonsDialog(QDialog):
                 missing_text.setMaximumHeight(100)
 
                 content_layout.addWidget(missing_text)
+            
+            if invalid_list and dialog_type == "add":
+                invalid_label = QLabel(tr("Invalid addons (skipped):"))
+                invalid_label.setStyleSheet("font-weight: bold; margin-top: 10px; color: #f44336;")
+                content_layout.addWidget(invalid_label)
+                
+                invalid_text = QTextEdit()
+                invalid_text.setPlainText(invalid_list)
+                invalid_text.setReadOnly(True)
+                invalid_text.setMaximumHeight(100)
+
+                content_layout.addWidget(invalid_text)
             
             if failed_list and dialog_type == "add":
                 failed_label = QLabel(tr("Failed to get information:"))
@@ -644,6 +656,27 @@ class MainWindow(QMainWindow):
         self.embed_single_btn.clicked.connect(self.embed_single_addon)
         left_layout.addWidget(self.embed_single_btn)
 
+        # Mods folder path
+        mods_folder_label = QLabel(tr("External mods folder path:"))
+        left_layout.addWidget(mods_folder_label)
+
+        mods_folder_layout = QHBoxLayout()
+        self.mods_folder_entry = QLineEdit()
+        self.mods_folder_entry.setFocusPolicy(Qt.ClickFocus)
+        mods_folder_layout.addWidget(self.mods_folder_entry)
+
+        mods_folder_browse_btn = QPushButton(tr("Browse"))
+        mods_folder_browse_btn.clicked.connect(lambda: self.select_folder(self.mods_folder_entry, tr("Select Mods folder")))
+        mods_folder_layout.addWidget(mods_folder_browse_btn)
+
+        left_layout.addLayout(mods_folder_layout)
+
+        # Scan folder button
+        self.scan_folder_btn = QPushButton(tr("Scan Folder"))
+        self.scan_folder_btn.setFont(QFont("", 10, QFont.Bold))
+        self.scan_folder_btn.clicked.connect(self.scan_mods_folder)
+        left_layout.addWidget(self.scan_folder_btn)
+
         # Status
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: gray;")
@@ -725,6 +758,7 @@ class MainWindow(QMainWindow):
         separator_anniversary2.setFrameShape(QFrame.HLine)
         separator_anniversary2.setFrameShadow(QFrame.Sunken)
         left_layout.addWidget(separator_anniversary2)
+
         left_layout.addStretch()
 
         # Widget for displaying logs
@@ -1076,6 +1110,7 @@ class MainWindow(QMainWindow):
         self.single_addon_entry.setText(app_config.get("single_addon_url", ""))
         self.hl2vr_entry.setText(app_config.get("hl2vr_path", ""))
         self.hl2_entry.setText(app_config.get("hl2_path", ""))
+        self.mods_folder_entry.setText(app_config.get("mods_folder_path", ""))
         
         # Load checkbox states
         check_files = app_config.get("check_addon_files", True)
@@ -1093,7 +1128,18 @@ class MainWindow(QMainWindow):
         if self.hl2vr_entry.text():
             self.load_addons_list()
 
-    def save_config(self):      
+        # Sync VR essential files on startup
+        hl2vr_path = app_config.get("hl2vr_path", "")
+        if hl2vr_path and os.path.exists(hl2vr_path):
+            try:
+                from addon_manager import create_vr_essential_backup
+                success, message = create_vr_essential_backup(hl2vr_path)
+                if not success:
+                    log.warning(tr("Failed to sync VR essential files: {}").format(message))
+            except Exception as e:
+                log.warning(tr("Error syncing VR essential files: {}").format(e))
+
+    def save_config(self):
         config.save_config(
             self.url_entry.text().strip(),
             self.single_addon_entry.text().strip(),
@@ -1103,7 +1149,8 @@ class MainWindow(QMainWindow):
             self.auto_check_maps_checkbox.isChecked(),
             self.embed_episodes_checkbox.isChecked(),
             translator.current_language,
-            self.check_updates_startup_checkbox.isChecked()
+            self.check_updates_startup_checkbox.isChecked(),
+            self.mods_folder_entry.text().strip()
         )
 
     def on_language_changed(self):
@@ -1237,7 +1284,9 @@ class MainWindow(QMainWindow):
             # Add each addon in gameinfo.txt format
             for addon in self.current_addons:
                 content += f"\t\t// {addon['title']}\n"
-                content += f'\t\tgame+mod\t\t"{addon["path"]}"\n'
+                # Normalize path to use forward slashes consistently
+                normalized_path = addon["path"].replace('\\', '/')
+                content += f'\t\tgame+mod\t\t"{normalized_path}"\n'
                 content += "\n"
             
             # Save to file
@@ -2037,17 +2086,35 @@ class MainWindow(QMainWindow):
             
             # DETERMINE WHICH ADDONS TO CHECK
             if specific_addon:
+                # Only check if this addon is from Steam Workshop (has numeric ID)
+                if not specific_addon['id'].isdigit():
+                    QMessageBox.information(self, tr("Information"),
+                                        tr("Map check is only available for Steam Workshop addons."))
+                    return
                 addons_to_check = [specific_addon]
                 check_type = "single"
                 log.info(tr("Checking map for addon: {}").format(specific_addon['title']))
             elif new_addons_count is not None:
-                addons_to_check = self.current_addons[:new_addons_count]
+                # Filter to only include Steam Workshop addons (numeric IDs)
+                steam_addons = [addon for addon in self.current_addons[:new_addons_count] if addon['id'].isdigit()]
+                addons_to_check = steam_addons
                 check_type = "auto"
-                log.info(tr("Auto map check for {} new addons").format(new_addons_count))
+                log.info(tr("Auto map check for {} new Steam Workshop addons").format(len(steam_addons)))
             else:
-                addons_to_check = self.current_addons
+                # Filter to only include Steam Workshop addons (numeric IDs)
+                steam_addons = [addon for addon in self.current_addons if addon['id'].isdigit()]
+                addons_to_check = steam_addons
                 check_type = "manual"
-                log.info(tr("Manual map check for {} addons").format(len(addons_to_check)))
+                log.info(tr("Manual map check for {} Steam Workshop addons").format(len(steam_addons)))
+            
+            # If no Steam Workshop addons to check, return early
+            if not addons_to_check:
+                if check_type == "auto":
+                    log.info(tr("No Steam Workshop addons to auto-check for maps"))
+                elif check_type == "manual":
+                    QMessageBox.information(self, tr("Information"),
+                                        tr("Map check is only available for Steam Workshop addons."))
+                return
             
             gameinfo_path = os.path.join(hl2vr_path, "hlvr", "gameinfo.txt")
             
@@ -2075,6 +2142,10 @@ class MainWindow(QMainWindow):
             # Flag for immediate stop
             rate_limit_hit = False
             
+            # Function to check for cancellation
+            def check_cancel():
+                return progress and progress.wasCanceled()
+            
             # Function to check single addon
             def check_single_addon(addon):
                 """Checks single addon for map presence"""
@@ -2085,9 +2156,17 @@ class MainWindow(QMainWindow):
                     return None
                     
                 try:
+                    # Check for cancellation at the beginning of each task
+                    if check_cancel():
+                        return None
+                        
                     addon_url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={addon['id']}"
                     is_map = workshop.is_addon_map(addon_url)
                     
+                    # Check for cancellation after potentially long-running network request
+                    if check_cancel():
+                        return None
+                        
                     if not is_map:
                         return None
                         
@@ -2147,7 +2226,7 @@ class MainWindow(QMainWindow):
                 except Exception as e:
                     log.error(tr("Error checking addon {}: {}").format(addon['title'], str(e)))
                     return None
-            
+       
             # Use ThreadPoolExecutor with fewer threads
             try:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -2156,6 +2235,16 @@ class MainWindow(QMainWindow):
                     
                     # Process results as they complete
                     for i, future in enumerate(concurrent.futures.as_completed(future_to_addon), 1):
+                        # Check for cancellation before processing each result
+                        if progress and progress.wasCanceled():
+                            # Cancel all remaining futures
+                            for f in future_to_addon:
+                                if not f.done():
+                                    f.cancel()
+                            progress.close()
+                            log.info(tr("Map check cancelled by user"))
+                            return
+                            
                         addon = future_to_addon[future]
                         
                         # Update progress bar if exists
@@ -2165,6 +2254,10 @@ class MainWindow(QMainWindow):
                             QApplication.processEvents()
                             
                             if progress.wasCanceled():
+                                # Cancel all remaining futures
+                                for f in future_to_addon:
+                                    if not f.done():
+                                        f.cancel()
                                 progress.close()
                                 log.info(tr("Map check cancelled by user"))
                                 return
@@ -2212,7 +2305,8 @@ class MainWindow(QMainWindow):
                 if progress:
                     progress.close()
                 return
-            
+       
+       
             # Close progress bar
             if progress:
                 progress.setValue(len(addons_to_check))
@@ -2641,13 +2735,21 @@ class MainWindow(QMainWindow):
             title_item = QTableWidgetItem(addon['title'])
             self.addons_table.setItem(row, 1, title_item)
             
-            # Link
-            link_item = QTableWidgetItem(tr("Open in Steam"))
-            link_item.setForeground(QColor(0, 100, 200))
-            font = link_item.font()
-            font.setUnderline(True)
-            link_item.setFont(font)
-            self.addons_table.setItem(row, 2, link_item)
+            # Link - Check if this addon is from Steam Workshop by looking at the ID
+            # If the ID is numeric, it's from Steam; if it's a path or other identifier, it's from folder
+            if addon['id'].isdigit():
+                # Steam addon - show link to Steam
+                link_item = QTableWidgetItem(tr("Open in Steam"))
+                link_item.setForeground(QColor(0, 100, 200))
+                font = link_item.font()
+                font.setUnderline(True)
+                link_item.setFont(font)
+                self.addons_table.setItem(row, 2, link_item)
+            else:
+                # Folder mod - show empty cell instead of link
+                link_item = QTableWidgetItem("")
+                link_item.setFlags(link_item.flags() & ~Qt.ItemIsEnabled)  # Make it non-clickable
+                self.addons_table.setItem(row, 2, link_item)
             
             # Addon folder open button
             folder_btn = QPushButton(tr("Open folder"))
@@ -2673,22 +2775,60 @@ class MainWindow(QMainWindow):
         # Temporarily disable updates
         self.addons_table.setUpdatesEnabled(False)
         
-        # Update only text cells
+        # Store current checkbox states by addon ID before updating
+        checkbox_states_by_id = {}
+        for row in range(min(len(self.current_addons), self.addons_table.rowCount())):
+            checkbox_item = self.addons_table.item(row, 0)
+            if checkbox_item:
+                # Store checkbox state by addon ID instead of row index
+                # Get the addon ID from current_addons at this position before update
+                addon_id = self.current_addons[row]['id']
+                checkbox_states_by_id[addon_id] = checkbox_item.checkState()
+        
+        # Update all cells according to new addon order
         for row, addon in enumerate(self.current_addons):
             if row < self.addons_table.rowCount():
-                # Update title (column 1)
-                title_item = self.addons_table.item(row, 1)
-                if title_item:
-                    title_item.setText(addon['title'])
-                
-                # Update checkbox (column 0) - preserve state
+                # Update checkbox (column 0) - restore the proper state after reorder
                 checkbox_item = self.addons_table.item(row, 0)
                 if checkbox_item:
-                    # Save current checkbox state
-                    current_state = checkbox_item.checkState()
-                    # Here we can update other properties if needed
+                    # Set checkbox state based on the addon that is now in this row
+                    addon_id = addon['id']
+                    if addon_id in checkbox_states_by_id:
+                        checkbox_item.setCheckState(checkbox_states_by_id[addon_id])
+                    else:
+                        # If no previous state for this addon (newly added), ensure it's unchecked
+                        checkbox_item.setCheckState(Qt.Unchecked)
                 
-                # Update "Open folder" button (column 3)
+                # Update title (column 1)
+                title_item = self.addons_table.item(row, 1)
+                if title_item and title_item.text() != addon['title']:
+                    title_item.setText(addon['title'])
+                
+                # Update link to Steam (column 2) - this is the key fix
+                link_item = self.addons_table.item(row, 2)
+                if link_item:
+                    # Check if this addon is from Steam Workshop by looking at the ID
+                    # If the ID is numeric, it's from Steam; if it's a path or other identifier, it's from folder
+                    if addon['id'].isdigit():
+                        # Steam addon - show link to Steam
+                        if link_item.text() != tr("Open in Steam"):
+                            link_item.setText(tr("Open in Steam"))
+                            link_item.setForeground(QColor(0, 100, 200))
+                            font = link_item.font()
+                            font.setUnderline(True)
+                            link_item.setFont(font)
+                        # Make sure it's enabled if it should be
+                        if not (link_item.flags() & Qt.ItemIsEnabled):
+                            link_item.setFlags(link_item.flags() | Qt.ItemIsEnabled)
+                    else:
+                        # Folder mod - show empty cell instead of link
+                        if link_item.text() != "":
+                            link_item.setText("")
+                        # Make sure it's disabled if it should be
+                        if link_item.flags() & Qt.ItemIsEnabled:
+                            link_item.setFlags(link_item.flags() & ~Qt.ItemIsEnabled)
+                
+                # Update "Open folder" button (column 3) - restore this functionality
                 folder_btn = self.addons_table.cellWidget(row, 3)
                 if folder_btn:
                     # Update button action with new path
@@ -3117,8 +3257,11 @@ class MainWindow(QMainWindow):
         if column == 2:
             if row < len(self.current_addons):
                 addon_id = self.current_addons[row]['id']
-                if addon_id != tr("Unknown"):
-                    
+                # Only open Steam page if the ID is numeric (meaning it's from Steam Workshop)
+                # Skip if the ID is not numeric (meaning it's a folder mod)
+                # Additionally verify that the cell actually contains a clickable link
+                link_item = self.addons_table.item(row, 2)
+                if addon_id.isdigit() and link_item and link_item.flags() & Qt.ItemIsEnabled:
                     url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={addon_id}"
                     webbrowser.open(url)
 
@@ -3132,10 +3275,168 @@ class MainWindow(QMainWindow):
                 self.load_addons_list()
                 self.update_episodes_checkbox_availability(force_enable=True)
 
+    def scan_mods_folder(self):
+        """Scans mods folder and adds found mods to the list"""
+        mods_path = self.mods_folder_entry.text().strip()
+        hl2vr_path = self.hl2vr_entry.text().strip()
+        
+        if not mods_path:
+            QMessageBox.critical(self, tr("Error"), tr("Specify path to mods folder"))
+            return
+            
+        if not hl2vr_path:
+            QMessageBox.critical(self, tr("Error"), tr("First select Half-Life 2 VR folder"))
+            return
+        
+        # Check if mods path is the same as custom folder
+        custom_paths = [
+            os.path.join(hl2vr_path, "hlvr", "custom"),
+            os.path.join(hl2vr_path, "episodicvr", "custom"),
+            os.path.join(hl2vr_path, "ep2vr", "custom")
+        ]
+        
+        for custom_path in custom_paths:
+            if os.path.normpath(mods_path) == os.path.normpath(custom_path):
+                QMessageBox.critical(self, tr("Error"),
+                                   tr("Custom folder can't be used as a mod folder for Workshop Extender") + ". " +
+                                   tr("Create a separate folder for external mods."))
+                return
+        
+        
+        # Disable button during scanning
+        self.scan_folder_btn.setEnabled(False)
+        self.status_label.setText(tr("Scanning folder for mods..."))
+        
+        try:
+            # Use addon_manager to scan the folder
+            valid_mods, invalid_mods, error_message = addon_manager.scan_mods_folder(mods_path, hl2vr_path)
+            
+            if error_message:
+                QMessageBox.critical(self, tr("Error"), error_message)
+                self.scan_folder_btn.setEnabled(True)
+                return
+            
+            # Start preparation for mounting
+            self.prepare_mods_from_folder_scan(valid_mods, invalid_mods, hl2vr_path)
+            
+        except Exception as e:
+            log.error(f"Error scanning mods folder: {str(e)}")
+            QMessageBox.critical(self, tr("Error"), f"An unexpected error occurred:\n{str(e)}")
+            self.scan_folder_btn.setEnabled(True)
+
+    def prepare_mods_from_folder_scan(self, valid_mods, invalid_mods, hl2vr_path):
+        """Prepare and show confirmation dialog for mods from folder"""
+        try:
+            # Get HL2 path
+            hl2_path = self.hl2_entry.text().strip()
+            if not hl2_path:
+                QMessageBox.critical(self, tr("Error"), tr("First select Half-Life 2 folder"))
+                self.scan_folder_btn.setEnabled(True)
+                return
+            
+            # Prepare mods using addon_manager to get all information
+            success, data, error_message = addon_manager.prepare_mods_from_folder(
+                self.mods_folder_entry.text().strip(),
+                hl2vr_path,
+                self.check_files_checkbox.isChecked()
+            )
+            
+            if not success:
+                QMessageBox.critical(self, tr("Error"), error_message)
+                self.scan_folder_btn.setEnabled(True)
+                return
+            
+            # Show confirmation dialog with all types of addons
+            summary = tr("{} addons will be mounted").format(len(data['unique_addons']))
+            
+            addons_list = ""
+            if data['unique_addons']:
+                addons_list = "\n".join([f"{i+1}. {title}" for i, (_, title) in enumerate(data['unique_addons'])])
+            
+            duplicates_list = ""
+            if data['duplicates']:
+                duplicates_list = "\n".join([f"{i+1}. {title}" for i, (_, title) in enumerate(data['duplicates'])])
+            
+            missing_list = ""
+            if data['missing_addons']:
+                missing_list = "\n".join([f"{i+1}. {title}" for i, (_, title, _) in enumerate(data['missing_addons'])])
+            
+            invalid_list = ""
+            if invalid_mods:
+                invalid_list = "\n".join([f"{i+1}. {title} ({reason})" for i, (_, title, reason) in enumerate(invalid_mods)])
+            
+            # Show confirmation dialog
+            dialog = ConfirmAddonsDialog(
+                parent=self,
+                title=tr("Mods from folder"),
+                summary=summary,
+                addons_list=addons_list,
+                duplicates_list=duplicates_list,
+                missing_list=missing_list,
+                invalid_list=invalid_list,
+                dialog_type="add"
+            )
+            
+            result = dialog.exec_()
+            
+            if result != QDialog.Accepted:
+                self.status_label.setText(tr("Operation cancelled"))
+                log.info(tr("External mods mounting cancelled by user"))
+                self.scan_folder_btn.setEnabled(True)
+                return
+            
+            # Start execution
+            self.start_mods_execution(data)
+            
+        except Exception as e:
+            log.error(f"Error preparing external mods: {str(e)}")
+            QMessageBox.critical(self, tr("Error"), f"An unexpected error occurred:\n{str(e)}")
+            self.scan_folder_btn.setEnabled(True)
+
+    def start_mods_execution(self, data):
+        """Start execution of mounting mods from folder"""
+        hl2vr_path = self.hl2vr_entry.text().strip()
+        hl2_path = self.hl2_entry.text().strip()
+        
+        if not hl2vr_path or not hl2_path:
+            QMessageBox.critical(self, tr("Error"), tr("First select Half-Life 2 VR and Half-Life 2 folders"))
+            self.scan_folder_btn.setEnabled(True)
+            return
+        
+        # Disable button and update status
+        self.scan_folder_btn.setEnabled(False)
+        self.status_label.setText(tr("Mounting external mods..."))
+        
+        # Mount the mods
+        success, message = gameinfo.update_gameinfo(
+            data['gameinfo_path'],
+            data['addons_with_paths']
+        )
+        
+        if success:
+            final_message = tr("External mods successfully processed!") + f"\n{message}"
+            log.info(tr("External mods successfully processed"))
+            QMessageBox.information(self, tr("Success"), final_message)
+            
+            # Reload addons list
+            self.load_addons_list()
+            
+            # Sync with episodes
+            self.sync_episodes_with_main()
+            
+            # Check for maps automatically if enabled (but not for folder mods)
+            # We skip auto-map-check for folder mods since they are not from Steam Workshop
+            
+        else:
+            log.error(tr("Error mounting external mods: ") + message)
+            QMessageBox.critical(self, tr("Error"), message)
+        
+        # Re-enable button
+        self.scan_folder_btn.setEnabled(True)
+
     def open_addon_folder(self, folder_path):
         """Opens addon folder in Windows Explorer"""
         try:
-            
             
             # For all addons get addon folder (parent folder)
             # If path points to workshop_dir.vpk or workshop_dir, take parent folder
@@ -3143,13 +3444,39 @@ class MainWindow(QMainWindow):
                 folder_dir = os.path.dirname(folder_path)
             else:
                 # If path already points to addon folder, use it
+                # For external mods, folder_path is already the correct path
                 folder_dir = folder_path
             
+            # Normalize path separators to Windows format
+            folder_dir = os.path.normpath(folder_dir)
+            
+            # Check if the folder exists directly
             if os.path.exists(folder_dir):
-                # Open addon folder in Windows Explorer
-                subprocess.Popen(f'explorer "{folder_dir}"')
+                # Check if the path is a file (like .vpk)
+                if os.path.isfile(folder_dir):
+                    # Open folder with the file selected using /select
+                    subprocess.Popen(['explorer', '/select,', folder_dir])
+                else:
+                    # Open addon folder in Windows Explorer
+                    subprocess.Popen(['explorer', folder_dir])
             else:
-                # Try to find folder by addon ID
+                # For external mods the path may already be correct, but files may be in subfolder
+                # Check if folder_path is a path to a VPK file
+                if folder_path.lower().endswith('.vpk'):
+                    # For VPK files try to open the parent folder with file selection
+                    normalized_path = os.path.normpath(folder_path)
+                    if os.path.exists(normalized_path):
+                        subprocess.Popen(['explorer', '/select,', normalized_path])
+                        return
+                    else:
+                        # If file doesn't exist, open parent folder
+                        parent_dir = os.path.dirname(folder_path)
+                        parent_dir = os.path.normpath(parent_dir)
+                        if os.path.exists(parent_dir):
+                            subprocess.Popen(['explorer', parent_dir])
+                            return
+                
+                # If path doesn't exist, try to find by ID
                 addon_id = None
                 for addon in self.current_addons:
                     if addon['path'] == folder_path:
@@ -3163,11 +3490,14 @@ class MainWindow(QMainWindow):
                         from path_utils import get_workshop_path
                         workshop_path = get_workshop_path(hl2_path)
                         alternative_path = os.path.join(workshop_path, addon_id)
+                        # Normalize path separators to Windows format
+                        alternative_path = os.path.normpath(alternative_path)
                         
                         if os.path.exists(alternative_path):
-                            subprocess.Popen(f'explorer "{alternative_path}"')
+                            subprocess.Popen(['explorer', alternative_path])
                             return
                 
+                # If nothing worked, show error
                 QMessageBox.warning(self, tr("Error"), tr("Addon folder not found:\n{}").format(folder_dir))
                 
         except Exception as e:
@@ -3334,10 +3664,13 @@ class MainWindow(QMainWindow):
 
 
     def get_addon_folder_path(self, addon_path):
+        # For external mods addon_path is already the folder path
+        # For Steam mods check if it's VPK or workshop_dir
         if addon_path.endswith('workshop_dir.vpk') or addon_path.endswith('workshop_dir'):
-            return os.path.dirname(addon_path)
+            return os.path.normpath(os.path.dirname(addon_path))
         else:
-            return addon_path
+            # For external mods or other path types return the path as is, but normalize
+            return os.path.normpath(addon_path)
 
     def show_context_menu(self, position):
         """Shows context menu for selected addon"""
@@ -3355,8 +3688,14 @@ class MainWindow(QMainWindow):
         
         # Create context menu with one option
         menu = QMenu(self)
-        check_map_action = menu.addAction(tr("Check map"))
-        check_map_action.triggered.connect(lambda: self.check_maps(specific_addon=addon))
+        
+        # Only show "Check map" option for Steam Workshop addons (numeric ID)
+        # Don't show it for folder mods (non-numeric ID)
+        # Also verify that the link cell is enabled (indicating it's a Steam addon)
+        link_item = self.addons_table.item(row, 2)
+        if addon['id'].isdigit() and link_item and link_item.flags() & Qt.ItemIsEnabled:
+            check_map_action = menu.addAction(tr("Check map"))
+            check_map_action.triggered.connect(lambda: self.check_maps(specific_addon=addon))
         
         # Show menu at click position
         menu.exec_(self.addons_table.viewport().mapToGlobal(position))

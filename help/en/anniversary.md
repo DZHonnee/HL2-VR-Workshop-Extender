@@ -7,10 +7,9 @@
 <h2>Reverting to original version</h2>
 <ol>
     <li>Go to the <b>Half-Life 2 VR/hlvr</b> folder</li>
-    <li>Delete the <b>maps</b> and <b>shaders</b> folders</li>
+    <li>Delete the <b>maps</b> folder</li>
     <li>In Steam library, right-click on Half-Life 2: VR Mod</li>
     <li>Select <b>Properties</b> → <b>Installed Files</b></li>
     <li>Click <b>Verify integrity of game files</b></li>
     <li>Also verify file integrity for VR Episodes</li>
-
 </ol>

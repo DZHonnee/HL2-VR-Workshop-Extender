@@ -14,15 +14,15 @@ class UpdateChecker:
 
     def check_for_updates(self):
         """
-        Проверяет наличие новой версии на GitHub
-        Возвращает tuple (has_update, latest_version, release_info) или (False, None, None) если нет обновлений
+        Checks for a new version on GitHub
+        Returns tuple (has_update, latest_version, release_info) or (False, None, None) if no updates
         """
         try:
             response = requests.get(self.api_url, timeout=10)
             response.raise_for_status()
 
             release_data = response.json()
-            # Извлекаем версию из тега, учитывая формат v1.0
+            # Extract version from tag, considering format v1.0
             tag_name = release_data.get('tag_name', '')
             latest_version = re.sub(r'^v', '', tag_name)
 
@@ -30,7 +30,7 @@ class UpdateChecker:
                 log.warning(tr("Could not get version information from GitHub"))
                 return False, None, None
 
-            # Сравниваем версии
+            # Compare versions
             if version.parse(self.current_version) < version.parse(latest_version):
                 log.info(tr("New version available: {}").format(latest_version))
                 return True, latest_version, release_data

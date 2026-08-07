@@ -223,12 +223,12 @@ class AnniversaryUpdateManager:
         return templates[game_type].format(hl2_path=self.hl2_path.replace('\\', '/'))
     
     def copy_vpk_files(self, existing_dirs):
-        """Копирует VPK файлы из AnniversaryContent для существующих папок"""
+        """Copies VPK files from AnniversaryContent for existing folders"""
         try:
             if not os.path.exists(self.anniversary_content_path):
-                return False, f"Папка AnniversaryContent не найдена"
+                return False, f"AnniversaryContent folder not found"
             
-            # Список VPK файлов для копирования с проверкой существования папки
+            # List of VPK files to copy with folder existence check
             vpk_files_to_copy = []
             if existing_dirs['hlvr']:
                 vpk_files_to_copy.append(('hlvr/hl2vr.vpk', 'hlvr/hl2vr.vpk'))
@@ -259,30 +259,47 @@ class AnniversaryUpdateManager:
             return False, f"Error copying VPK files: {str(e)}"
     
     def copy_hlvr_folders(self, existing_dirs):
-        """Copies maps and shaders folders from AnniversaryContent to hlvr, replacing existing ones"""
+        """Copies maps folder from AnniversaryContent to hlvr (with replacement),
+        and shaders folder to hlvr/custom/anniversary_teeth_fix (without touching original shaders)"""
         try:
             if not existing_dirs['hlvr']:
                 return True, tr("hlvr folder not found, skipping folder copy")
-                
-            # Folders to copy from AnniversaryContent to hlvr
-            folders_to_copy = ['maps', 'shaders']
-            
-            for folder_name in folders_to_copy:
-                src_folder = os.path.join(self.anniversary_content_path, "hlvr", folder_name)
-                dst_folder = os.path.join(self.hl2vr_path, "hlvr", folder_name)
-                
-                if not os.path.exists(src_folder):
-                    return False, f"Folder {folder_name} not found in AnniversaryContent: {src_folder}"
-                
-                # Delete target folder if it exists
-                if os.path.exists(dst_folder):
-                    shutil.rmtree(dst_folder)
-                
-                # Copy folder from AnniversaryContent
-                shutil.copytree(src_folder, dst_folder)
-            
+
+            # ----- maps -----
+            src_maps = os.path.join(self.anniversary_content_path, "hlvr", "maps")
+            dst_maps = os.path.join(self.hl2vr_path, "hlvr", "maps")
+
+            if not os.path.exists(src_maps):
+                return False, f"maps folder not found in AnniversaryContent: {src_maps}"
+
+            # Delete existing maps folder if it exists
+            if os.path.exists(dst_maps):
+                shutil.rmtree(dst_maps)
+
+            # Copy maps from AnniversaryContent
+            shutil.copytree(src_maps, dst_maps)
+
+            # ----- shaders (now goes to custom/anniversary_teeth_fix) -----
+            src_shaders = os.path.join(self.anniversary_content_path, "hlvr", "shaders")
+            if not os.path.exists(src_shaders):
+                return False, f"shaders folder not found in AnniversaryContent: {src_shaders}"
+
+            # Target: hlvr/custom/anniversary_teeth_fix
+            custom_base = os.path.join(self.hl2vr_path, "hlvr", "custom")
+            dst_shaders_root = os.path.join(custom_base, "anniversary_teeth_fix", "shaders")
+
+            # Create parent directory if needed
+            os.makedirs(os.path.dirname(dst_shaders_root), exist_ok=True)
+
+            # Delete existing anniversary_teeth_fix/shaders if it exists (to ensure clean copy)
+            if os.path.exists(dst_shaders_root):
+                shutil.rmtree(dst_shaders_root)
+
+            # Copy shaders from AnniversaryContent to custom folder
+            shutil.copytree(src_shaders, dst_shaders_root)
+
             return True, ""
-            
+
         except Exception as e:
             return False, f"Error copying hlvr folders: {str(e)}"
     
@@ -355,7 +372,7 @@ class AnniversaryUpdateManager:
             if not success:
                 return False, message
             
-            # Copy maps and shaders folders to hlvr (replacing existing ones)
+            # Copy maps and shaders folders to hlvr
             success, message = self.copy_hlvr_folders(existing_dirs)
             if not success:
                 return False, message

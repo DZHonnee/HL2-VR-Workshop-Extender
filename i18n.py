@@ -590,7 +590,38 @@ class Translator(QObject):
 "Failed to remove directory {}: {}": "Не удалось удалить папку {}: {}",
 "Removed file: {}": "Удален файл: {}",
 "Failed to remove file {}: {}": "Не удалось удалить файл {}: {}",
-"Cleaning problematic files...": "Очистка проблемных файлов..."
+"Cleaning problematic files...": "Очистка проблемных файлов...",
+"Scan Folder": "Сканировать папку",
+"External mods folder path:": "Папка со сторонними модами:",
+"Mods folder not found": "Папка с модами не найдена",
+"Folder scanning": "Сканирование папки",
+"Scanning folder for mods...": "Сканирование папки на наличие модов...",
+"Found {} mods in folder": "Найдено {} модов в папке",
+"Mod folder structure is invalid": "Неверная структура папки мода",
+"Mods from folder": "Моды из папки",
+"No valid mods found in folder": "В папке не найдено действительных модов",
+"Custom folder can't be used as a mod folder for Workshop Extender": "Папка custom не может быть использована для сторонних модов в Workshop Extender",
+"Create a separate folder for external mods.": "Создайте отдельную папку для сторонних модов.",
+"Mods folder location warning": "Предупреждение о расположении папки модов",
+"Invalid addons (skipped):": "Некорректные аддоны (пропущены)",
+"Prepared {} external mods": "Подготовлено {} внешних модов",
+"External mods successfully processed!": "Внешние моды успешно обработаны!",
+"External mods successfully processed": "Внешние моды успешно обработаны",
+"Error mounting external mods: ": "Ошибка встраивания внешних модов: ",
+"External mods mounting cancelled by user": "Встраивание внешних модов отменено пользователем",
+"Mounting external mods...": "Встраиваем внешние моды...",
+
+
+"Source directory not found: {}": "Исходная директория не найдена: {}",
+"Removed stale file: {}": "Удален устаревший файл: {}",
+"Failed to remove stale file: {}": "Не удалось удалить устаревший файл: {}",
+"Failed to remove stale file {}: {}": "Не удалось удалить устаревший файл {}: {}",
+"Removed stale directory: {}": "Удалена устаревшая директория: {}",
+"Failed to remove stale directory {}: {}": "Не удалось удалить устаревшую директорию {}: {}",
+"Essential VR files prioritized via custom folder ({} file(s) updated)": "Важные VR файлы приоритезированы через папку custom ({} файлов обновлено)",
+"VR essential files synchronized": "VR essential файлы синхронизированы",
+"Checking for conflicting shader files...": "Проверка конфликтующих шейдерных файлов...",
+
 }
 
             

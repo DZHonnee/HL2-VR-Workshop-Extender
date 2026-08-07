@@ -44,7 +44,7 @@ Workshop Extender can also upgrade HL2:VR to the Anniversary Update by modifying
 <br>(The tool has such a big size bacause of AnniversaryContent folder that contains some modified map files for proper functionality)
 
 ## Notes
-- Linux is not supported, the program's behaviour is unknown on it
+- Linux is not supported
 - Supports English and Russian language
 
 ## More info
