@@ -1,11 +1,11 @@
 <h2>Recommendations</h2>
 <ul>
+<li><b>(!) Launch campaign addons only through Episode 2 VR</b>, as they may use Episode content.
+This usually doesn't apply to maps that replace original HL2 maps.</li>
+  
 <li>With mods that are simple packs of maps with some minimal custom content (materials, models), there shouldn't be serious problems.
 Problems may occur when the mod has its own resources, scripts, configs, etc., i.e., a full-fledged mod with a campaign. 
-You can check for such folders by opening the addon folder if it was unpacked. But even so, many mods will be at least playable.</li>
-
-<li><b>Launch campaign addons only through Episode 2 VR</b>, as they may use Episode content.
-This usually doesn't apply to maps that replace original HL2 maps.</li>
+You can check for such folders by opening the addon folder if it was unpacked. But even so, most mods will be playable to some extent.</li>
 
 <li>For more correct map functionality, install the <b>Anniversary Update</b> content (see tab).</li>
 
@@ -24,7 +24,7 @@ This usually doesn't apply to maps that replace original HL2 maps.</li>
 
 <li>On some maps, fog may look incorrect (too bright, standing out against the sky).</li>
 
-<li>There's always a small chance of "A.I. Disabled" error appearing.</li>
+<li>There's always a <i>small</i> chance of "A.I. Disabled" error appearing.</li>
 
 <li>Some mods may not launch at all. The program already deletes files that commonly cause this problem, but if it still happens then try to open the addon's folder and delete all files <b>except folders</b> (materials, models, scripts, etc.), if they exist.
 </li>
@@ -37,7 +37,7 @@ This error may occur when you try to mount installed addons or check maps.
 <p><b>What does it mean?</b></p>
 
 <ul>
-<li>Steam is currently limiting requests to its servers due to high load, likely caused by an event or Steam just having trouble.</li>
+<li>Steam is currently limiting your requests due to some protection mechanism.</li>
 <li>You temporarily cannot access Workshop item pages. This limitation usually lasts only a couple of minutes. Wait a bit and then check if item pages open.</li>
 <li>Due to these limitations, you currently won't be able to mount installed addons or check maps in your addon list.</li>
 </ul>
@@ -52,8 +52,6 @@ This error may occur when you try to mount installed addons or check maps.
 <br>2. Click 'Save to collection' and save to a new collection;
 <br>3. Open the collection, change visibility to 'Unlisted' and wait until the 'This item is awaiting analysis...' notice disappears;
 <br>4. Mount the collection. Verify that the addon order matches the list in HL2.</li>
-
-
 </ul>
 
 
