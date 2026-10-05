@@ -32,11 +32,11 @@ You can check for such folders by opening the addon folder if it was unpacked. B
 
 <h2>Steam request limit exceeded (error 429)</h2>
 <p>
-This error may occur when you try to mount a bunch of addons that are unlisted on Steam. You will see them in the log section if they are encountered during the mounting process. They use an old HTTP request method that Steam doesn't like, because unlisted addons are, for some reason, not available through the Steam API.
+This error may occur when you try to mount a bunch of addons that are unlisted on Steam. You will see them in the log section if they are encountered during the mounting process. They use an old web page request method that Steam doesn't like, because unlisted addons are, for some reason, not available through the Steam API.
 </p>
 <p><b>This means:</b></p>
 <ul>
-<li>Steam is currently limiting your HTTP requests to the workshop due to a protection mechanism.</li>
+<li>Steam is currently limiting your web requests to the workshop due to a protection mechanism.</li>
 <li>You may temporarily lose access to Workshop item pages. This usually lasts only a couple of minutes — wait a bit and then check whether the item pages open.</li>
 <li>Wait a couple of minutes before trying mounting again.</li>
 </ul>
