@@ -12,7 +12,6 @@ def load_config():
         "hl2_path": "",
         "mods_folder_path": "",
         "check_addon_files": True,
-        "auto_check_maps": True,
         "embed_into_episodes": True,
         "language": "en",
         "check_updates_on_startup": True
@@ -35,7 +34,7 @@ def load_config():
         return default_config
 
 def save_config(collection_url, single_addon_url, hl2vr_path, hl2_path,
-                check_addon_files, auto_check_maps, embed_into_episodes, language="en", check_updates_on_startup=True, mods_folder_path=""):
+                check_addon_files, embed_into_episodes, language="en", check_updates_on_startup=True, mods_folder_path=""):
     config = {
         "collection_url": collection_url,
         "single_addon_url": single_addon_url,
@@ -43,7 +42,6 @@ def save_config(collection_url, single_addon_url, hl2vr_path, hl2_path,
         "hl2_path": hl2_path,
         "mods_folder_path": mods_folder_path,
         "check_addon_files": check_addon_files,
-        "auto_check_maps": auto_check_maps,
         "embed_into_episodes": embed_into_episodes,
         "language": language,
         "check_updates_on_startup": check_updates_on_startup

@@ -23,6 +23,18 @@ aniversary_gameinfos/
 debug_pages/
 other/
 
+# Debug / test files
+.freebuff/
+addon_1_collection.json
+addon_1_published.json
+addon_2_collection.json
+addon_2_published.json
+collection_result.json
+api_request_test.py
+wokrshopextender.md
+workshop_000.vpk
+workshop_dir.vpk
+
 # Images and assets
 *.jpg
 *.png

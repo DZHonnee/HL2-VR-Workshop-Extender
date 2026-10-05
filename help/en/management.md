@@ -18,11 +18,12 @@
 
 <h2>Additional functions</h2>
 <ul>
-    <li><b>Refresh list (⟳)</b> - reload the addon list (re-read gameinfo.txt)</li>
+    <li><b>Refresh list (⟳)</b> - reload the addon list (re-read gameinfo.txt, rescan unpacked maps)</li>
     <li><b>Reverse addons order (⇵)</b> - reverses the list</li>
     <li><b>Check files</b> - if addons with non-existent files are found, the program will offer to remove them from the list</li>
-    <li><b>Check maps</b> - see <b>Maps</b> tab</li>
-    <li><b>Resync (⟳)</b> - synchronize current list with Episodes</li>
+    <li><b>Unpack maps</b> - suggests to unpack all maps in the list, see the <b>Maps</b> tab for more info</li>
+    <li><b>Clear unpacked</b> - deletes all unpacked map folders</li>
+    <li><b>Resync (⟳)</b> - synchronize current list with Episodes manually</li>
     <li><b>Save/Load list</b> - saves current addon list to .txt file, loading will replace the current list</li>
 
 </ul>

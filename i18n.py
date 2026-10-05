@@ -31,14 +31,15 @@ class Translator(QObject):
 "Please check your internet connection and try again later.": "Пожалуйста, проверьте подключение к Интернету и повторите попытку позже.",
 "Could not load configuration from GitHub:": "Не удалось загрузить конфигурацию с GitHub:",
 "Error loading help configuration:": "Ошибка загрузки конфигурации справки:",
-"Extraction cancelled": "Распаковка отменена",
+"Unpacking cancelled": "Распаковка отменена",
 "Mounting confirmation": "Подтверждение встраивания",
 "Success": "Успех",
 
-"Successfully extracted maps:": "Успешно распакованные карты:",
-"Extraction errors:": "Ошибки при распаковке:",
-"Maps to extract:": "Карты для распаковки:",
-"Already extracted maps:": "Уже распакованные карты:",
+"Successfully unpacked maps:": "Успешно распакованные карты:",
+"Unpacking errors:": "Ошибки при распаковке:",
+"Maps to unpack:": "Карты для распаковки:",
+"Already unpacked maps:": "Уже распакованные карты:",
+"Maps not installed:": "Не установленные карты:",
 "Addons to add:": "Добавляемые аддоны:",
 "Addons to remove:": "Удаляемые аддоны:",
 "Missing addons:": "Отсутствующие аддоны:",
@@ -50,10 +51,9 @@ class Translator(QObject):
 "Remove": "Удалить",
 "Cancel": "Отмена",
 "Remove missing": "Удалить отсутствующие",
-"Extract maps": "Распаковать карты",
 "Skip": "Пропустить",
 "OK": "ОК",
-"No maps to extract": "Нет карт для распаковки",
+"No maps to unpack": "Нет карт для распаковки",
 
 
 "Half-Life 2 VR Mod folder:": "Папка Half-Life 2 VR Mod",
@@ -87,7 +87,12 @@ class Translator(QObject):
 "Load list": "Загрузить список",
 "Check files": "Проверить файлы",
 "Check maps": "Проверить карты",
-"Clear maps": "Очистить карты",
+"Unpack maps": "Распаковать карты",
+"Clear unpacked": "Удалить распакованные",
+"Requesting addon info from Steam...": "Запрос информации об аддонах через Steam...",
+"Processing addon information...": "Обработка информации об аддонах...",
+"Checking files: {}/{}": "Проверка файлов: {}/{}",
+"Checking {} addons for unextracted maps": "Проверка {} аддонов на нераспакованные карты",
 "Remove selected": "Удалить выбранные",
 "Remove all": "Удалить все",
 
@@ -267,7 +272,7 @@ class Translator(QObject):
 "Map check cancelled by user": "Проверка карт отменена пользователем",
 "Map found: {}": "Обнаружена карта: {}",
 "Error processing result for {}: {}": "Ошибка при обработке результата для {}: {}",
-"Check completed: {} maps, {} require extraction": "Проверка завершена: {} карт, {} требуют распаковки",
+"Check completed: {} maps, {} require unpacking to work": "Проверка завершена: {} карт, {} требуют распаковки для работы",
 
 
 "New map addons found": "Найдены новые аддоны-карты",
@@ -281,18 +286,19 @@ class Translator(QObject):
 
 
 
-"Found {} map addons:\n• {} require extraction\n• {} already extracted": "Найдено {} аддонов-карт:\n• {} требуют распаковки\n• {} уже распакованы",
-"Found {} map addons that require extraction.": "Найдено {} аддонов-карт, которые требуют распаковки.",
-"All {} map addons are already extracted.": "Все {} аддонов-карт уже распакованы.",
+"Found {} map addons:\n• {} require unpacking\n• {} already unpacked": "Найдено {} аддонов-карт:\n• {} требуют распаковки\n• {} уже распакованы",
+"Found {} map addons that require unpacking to work.": "Найдено {} аддонов-карт, которые требуют распаковки для работы.",
+"All {} map addons are already unpacked.": "Все {} аддонов-карт уже распакованы.",
 "Map addons not found.": "Аддоны-карты не найдены.",
-"Addon '{}' is a map but not extracted.": "Аддон '{}' является картой, но не распакован.",
-"Starting extraction of {} maps": "Запуск распаковки {} карт",
-"Preparing for extraction...": "Подготовка к распаковке...",
+"No map addons found in the list.": "В списке нет аддонов-карт.",
+"Addon '{}' is a map but not unpacked.": "Аддон '{}' является картой, но не распакован.",
+"Starting unpacking of {} maps": "Запуск распаковки {} карт",
+"Preparing for unpacking...": "Подготовка к распаковке...",
 "Cancel": "Отмена",
-"Map extraction": "Распаковка карт",
-"Extracting map: {}": "Распаковка карты: {}",
-"Extracting {} maps...": "Распаковка {} карт...",
-"Map extraction not required or cancelled by user": "Распаковка карт не требуется или отменена пользователем",
+"Map unpacking": "Распаковка карт",
+"Unpacking map: {}": "Распаковка карты: {}",
+"Unpacking {} maps...": "Распаковка {} карт...",
+"Map unpacking not required or cancelled by user": "Распаковка карт не требуется или отменена пользователем",
 
 
 
@@ -352,7 +358,7 @@ class Translator(QObject):
 
 "First specify paths to Half-Life 2 VR and Half-Life 2": "Сначала укажите пути к Half-Life 2 VR и Half-Life 2",
 "Warning": "Внимание",
-"This procedure will install Anniversary Update content into Half-Life 2: VR Mod and Episodes.\n\n⚠️ WARNING:\n• Current addons list will be cleared\n• Some game files will be modified\n• Current game saves will stop working\n• Instructions to return to original version are in Help\n\nContinue?": "Эта процедура установит контент Anniversary Update в Half-Life 2: VR Mod и Эпизоды.\n\n⚠️ ВНИМАНИЕ:\n• Текущий список аддонов будет очищен\n• Будут изменены некоторые файлы игры\n• Текущие сохранения игры перестанут работать\n• Инструкция для возврата к оригинальной версии находится в Справке\n\nПродолжить?",
+"This procedure will install Anniversary Update content into Half-Life 2: VR Mod and Episodes.\n\n⚠️ WARNING:\n• Current addons list will be cleared\n• Some game files will be modified\n• Current game saves will stop working\n• Instructions for returning to the original version are in the Help section\n\nContinue?": "Эта процедура установит контент Anniversary Update в Half-Life 2: VR Mod и Эпизоды.\n\n⚠️ ВНИМАНИЕ:\n• Текущий список аддонов будет очищен\n• Будут изменены некоторые файлы игры\n• Текущие сохранения игры перестанут работать\n• Инструкция для возврата к оригинальной версии находится в Справке\n\nПродолжить?",
 "Operation cancelled": "Операция отменена",
 "Anniversary Update installation cancelled by user": "Установка Anniversary Update отменена пользователем",
 "Installing anniversary update content...": "Устанавливаем контент юбилейного обновления...",
@@ -371,9 +377,9 @@ class Translator(QObject):
 
 "First select Half-Life 2 VR and Half-Life 2 folders": "Сначала выберите папки Half-Life 2 VR и Half-Life 2",
 "Clear Confirmation": "Подтверждение очистки",
-"This action will delete all extracted map addon folders.\n\nContinue?": "Это действие удалит все распакованные папки аддонов-карт.\n\nПродолжить?",
-"Extracted maps clearing cancelled by user": "Очистка распакованных карт отменена пользователем",
-"Starting extracted maps clearing...": "Запуск очистки распакованных карт...",
+"This action will delete all unpacked map addon folders.\n\nContinue?": "Это действие удалит все распакованные папки аддонов-карт.\n\nПродолжить?",
+"Unpacked maps clearing cancelled by user": "Очистка распакованных карт отменена пользователем",
+"Starting unpacked maps clearing...": "Запуск очистки распакованных карт...",
 "Failed to find workshop folder": "Не удалось найти папку мастерской",
 "gameinfo.txt not found": "Не найден gameinfo.txt",
 "Maps cleared!\n{}": "Карты очищены!\n{}",
@@ -385,17 +391,38 @@ class Translator(QObject):
 
 "Map {}/{}: {}": "Карта {}/{}: {}",
 
-"Map extraction cancelled by user": "Распаковка карт отменена пользователем",
-"General error during map extraction: {}": "Общая ошибка при распаковке карт: {}",
-"Extraction Error": "Ошибка распаковки",
+"Map unpacking cancelled by user": "Распаковка карт отменена пользователем",
+"General error during map unpacking: {}": "Общая ошибка при распаковке карт: {}",
+"Unpacking Error": "Ошибка распаковки",
 "Gameinfo.txt updated with new map paths": "Gameinfo.txt обновлен с новыми путями карт",
-"Extraction completed: {} successful, {} failed, total maps: {}": "Распаковка завершена: {} успешно, {} с ошибками, всего карт: {}",
-"Successfully extracted {} maps": "Успешно распаковано {} карт",
-"Extraction completed": "Распаковка завершена",
+"Unpacking completed: {} successful, {} failed, total maps: {}": "Распаковка завершена: {} успешно, {} с ошибками, всего карт: {}",
+"Successfully unpacked {} maps": "Успешно распаковано {} карт",
+# Strings that still referenced the old wording or were never translated
+"Found {} map addons:\n• {} require unpacking to work\n• {} already unpacked": "Найдено {} аддонов-карт:\n• {} требуют распаковки для работы\n• {} уже распакованы",
+# A map with neither a .vpk nor an unpacked folder is missing, not unpacked
+"Found {} map addons:": "Найдено {} аддонов-карт:",
+"{} require unpacking to work": "{} требуют распаковки для работы",
+"{} already unpacked": "{} уже распакованы",
+"{} not installed (files missing)": "{} не установлены (файлы отсутствуют)",
+"All {} map addons are already unpacked. {} map addons are not installed (files missing).": "Все {} аддонов-карт уже распакованы. {} аддонов-карт не установлены (файлы отсутствуют).",
+"{} map addons are not installed (files missing). Download them in Steam and try again.": "{} аддонов-карт не установлены (файлы отсутствуют). Скачайте их в Steam и повторите попытку.",
+"Map addon '{}' has neither VPK nor unpacked folder": "Аддон-карта '{}' не имеет ни VPK-файла, ни распакованной папки",
+"No specific addons provided for map unpacking": "Не переданы конкретные аддоны для распаковки",
+"Unpacking maps: {} maps to process": "Распаковка карт: {} карт в обработке",
+
+# Addon table badges
+"MAP": "КАРТА",
+"UNPACKED": "РАСПАКОВАНО",
+"NEEDS UNPACKING": "ТРЕБУЕТ РАСПАКОВКИ",
+"The incomplete folder of the interrupted map was deleted.": "Недораспакованная папка прерванной карты удалена.",
+"{} map(s) were unpacked before the cancel.": "До отмены распаковано карт: {}.",
+"Run Unpack maps again to continue.": "Запустите «Распаковать карты» ещё раз, чтобы продолжить.",
+"Removing incomplete data...": "Удаление недораспакованных данных…",
+"Unpacking completed": "Распаковка завершена",
 "Successful: {} maps\nFailed: {} maps": "Успешно: {} карт\nС ошибками: {} карт",
-"Extraction completed with errors": "Распаковка завершена с ошибками",
-"Failed to extract {} maps, see Help (Maps tab)": "Не удалось распаковать {} карт, обратитесь к Справке (вкладка 'Карты')",
-"Extraction completed. No maps to process.": "Распаковка завершена. Нет карт для обработки.",
+"Unpacking completed with errors": "Распаковка завершена с ошибками",
+"Failed to unpack {} maps, see Help (Maps tab)": "Не удалось распаковать {} карт, обратитесь к Справке (вкладка 'Карты')",
+"Unpacking completed. No maps to process.": "Распаковка завершена. Нет карт для обработки.",
 
 
 
@@ -426,6 +453,8 @@ class Translator(QObject):
 "workshop.txt not found.": "workshop.txt не найден.",
 "Installed addons not found.": "Установленные аддоны не найдены.",
 "Read {} addons from workshop.txt": "Прочитано {} аддонов из workshop.txt",
+"Could not read workshop folder: {}": "Не удалось прочитать папку мастерской: {}",
+"Found {} addons on disk that are not in workshop.txt": "Найдено {} аддонов на диске, которых нет в workshop.txt",
 
 "Found {} missing addon files": "Найдено {} отсутствующих файлов аддонов",
 
@@ -466,13 +495,13 @@ class Translator(QObject):
 "VPK file not found: {}": "VPK файл не найден: {}",
 "Folder already exists and not empty": "Папка уже существует и не пустая",
 "VPK file is empty": "VPK файл пустой",
-"Starting map extraction: ({} files)": "Начало распаковки карты: ({} файлов)",
-"Extraction cancelled": "Распаковка отменена",
-"Error extracting {}: {}": "Ошибка при извлечении {}: {}",
-"Map extracted: {}/{} files": "Карта распакована: {}/{} файлов",
-"Successfully extracted {} files": "Успешно распаковано {} файлов",
-"Error extracting map: {}": "Ошибка при распаковке карты: {}",
-"Error extracting map: {}. For possible solution see Help (Maps tab).": "Ошибка при распаковке карты: {}. Для возможного решения обратитесь к Справке (вкладка 'Карты').",
+"Starting map unpacking: ({} files)": "Начало распаковки карты: ({} файлов)",
+"Unpacking cancelled": "Распаковка отменена",
+"Error unpacking {}: {}": "Ошибка при распаковке {}: {}",
+"Map unpacked: {}/{} files": "Карта распакована: {}/{} файлов",
+"Successfully unpacked {} files": "Успешно распаковано {} файлов",
+"Error unpacking map: {}": "Ошибка при распаковке карты: {}",
+"Error unpacking map: {}. For possible solution see Help (Maps tab).": "Ошибка при распаковке карты: {}. Для возможного решения обратитесь к Справке (вкладка 'Карты').",
 
 
 "Checking maps: {} addons to process": "Проверка карт: {} аддонов для обработки",
@@ -480,14 +509,14 @@ class Translator(QObject):
 "Checking addon: {}": "Проверка аддона: {}",
 "{}: {}": "{}: {}",
 "cancelled": "отменена",
-"VPK file and non-empty extraction folder not found": "Не найден VPK файл и непустая папка распаковки",
+"VPK file and non-empty unpacking folder not found": "Не найден VPK файл и непустая папка распаковки",
 " (VPK: {})": " (VPK: {})",
-"Map check completed: {} extracted, {} errors": "Проверка карт завершена: {} распаковано, {} ошибок",
+"Map check completed: {} unpacked, {} errors": "Проверка карт завершена: {} распаковано, {} ошибок",
 
 
 
-"Clearing extracted maps...": "Очистка распакованных карт...",
-"Clearing completed: {} folders deleted, {} paths updated": "Очистка завершена: удалено {} папок, обновлено {} путей",
+"Clearing unpacked maps...": "Очистка распакованных карт...",
+"Clearing completed: {} folders deleted": "Очистка завершена: удалено {} папок",
 "Deleted folders: {}": "Удалено папок: {}",
 
 
@@ -521,6 +550,10 @@ class Translator(QObject):
 "Addons block markers corrupted.": "Метки блока аддонов повреждены.",
 "Failed to find addons block markers.": "Не удалось найти метки блока аддонов.",
 "Addons order updated": "Порядок аддонов обновлен",
+"Addons block updated": "Блок аддонов обновлён",
+"Addons block left unchanged": "Блок аддонов оставлен без изменений",
+"gameinfo.txt addons block was not rewritten: {} entries stored, {} addons parsed": "Блок аддонов в gameinfo.txt не перезаписан: записей хранится {}, распознано аддонов {}",
+"gameinfo.txt addons block updated to match the list": "Блок аддонов в gameinfo.txt приведён в соответствие со списком",
 
 
 
@@ -544,6 +577,21 @@ class Translator(QObject):
 "Failed to determine page": "Не удалось определить страницу",
 "Page is not a collection": "Страница не является коллекцией",
 "Page is not an addon": "Страница не является аддоном",
+"Addon is no longer available in Steam Workshop": "Аддон больше недоступен в мастерской Steam",
+"Addon is not from Half-Life 2 Workshop": "Аддон не из мастерской Half-Life 2",
+"Loaded unlisted addon {} via HTML fallback": "Аддон {} загружен через HTML-запасной путь",
+"Addon {} is not available in Steam": "Аддон {} недоступен в Steam",
+"HTML fallback got 429 for {}": "HTML-запасной путь получил 429 для {}",
+"Loading unlisted addon {}...": "Загрузка аддона {}...",
+"Steam request limit reached": "Достигнут лимит запросов Steam",
+"Could not load unlisted addon": "Не удалось загрузить аддон со страницы",
+"HTML fallback got status {} for {}": "HTML-запасной путь получил статус {} для {}",
+"HTML fallback found no title for {}": "HTML-запасной путь не нашёл название для {}",
+"This addon is unlisted, so it is loaded from its own page instead of the API. Steam is currently limiting these requests. Please try again later.": "Этот аддон не публикуется в мастерской, поэтому он загружается со своей страницы, а не через API. Steam сейчас ограничивает такие запросы. Пожалуйста, попробуйте позже.",
+"Failed to load this unlisted addon from its page. Please try again later.": "Не удалось загрузить этот аддон с его страницы. Пожалуйста, попробуйте позже.",
+"Failed to load any addon from the collection.": "Не удалось загрузить ни одного аддона из коллекции.",
+"Could not load any addon from the collection:": "Не удалось загрузить ни одного аддона из коллекции:",
+"Not available in Steam": "Недоступен в Steam",
 
 
 "gameinfo.txt is corrupted, addons cannot be mounted.": "gameinfo.txt поврежден, аддоны не могут быть встроены.",
@@ -562,6 +610,7 @@ class Translator(QObject):
 
 "Operation cancelled by user": "Операция отменена пользователем",
 "Loading addons information...": "Загрузка информации об аддонах...",
+"Mounting collection": "Встраивание коллекции",
 "Mounting installed addons": "Встраивание установленных аддонов",
 "Mounting cancelled by user": "Встраивание отменено пользователем",
 
@@ -594,6 +643,12 @@ class Translator(QObject):
 "Scan Folder": "Сканировать папку",
 "External mods folder path:": "Папка со сторонними модами:",
 "Mods folder not found": "Папка с модами не найдена",
+"First select Half-Life 2 folder": "Сначала выберите папку Half-Life 2",
+"Specify path to mods folder": "Укажите путь к папке со сторонними модами",
+"Mods folder path cannot be the same as custom folder": "Путь к папке со сторонними модами не может совпадать с папкой custom",
+"Create a separate folder for third-party mods": "Создайте отдельную папку для сторонних модов",
+"No mods found in folder": "В папке не найдено модов",
+"Addon to mount:\n\n{}": "Аддон для встраивания:\n\n{}",
 "Folder scanning": "Сканирование папки",
 "Scanning folder for mods...": "Сканирование папки на наличие модов...",
 "Found {} mods in folder": "Найдено {} модов в папке",

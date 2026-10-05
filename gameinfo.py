@@ -2,9 +2,115 @@ import addon_manager
 from logger import log
 from i18n import tr, translator
 
+def _block_lines(addon):
+    """
+    Builds the gameinfo.txt lines for one addon entry.
+    'addon' is a dict with 'path', 'title' and 'is_map' keys; extra keys
+    such as 'number' or 'is_unpacked' are ignored.
+    A map addon gets a //@map marker line between the title and the path,
+    which the Source engine ignores because it is a comment.
+    """
+    path = addon.get('path', '')
+    title = addon.get('title', '')
+    is_map = bool(addon.get('is_map', False))
+
+    normalized_path = path.replace('\\', '/')
+    lines = ['\t\t// {}\n'.format(title)]
+    if is_map:
+        lines.append('\t\t//@map\n')
+    lines.append('\t\tgame+mod\t\t"{}"\n'.format(normalized_path))
+    lines.append('\n')
+    return lines
+
+
+def _find_markers(lines):
+    """
+    Returns (start_index, end_index) of the mounted addons block, or None
+    when a marker is missing.
+    """
+    start_index = -1
+    end_index = -1
+
+    for i, line in enumerate(lines):
+        if "//mounted_addons_start" in line:
+            start_index = i
+        if "//mounted_addons_end" in line:
+            end_index = i
+
+    if start_index == -1 or end_index == -1:
+        return None
+
+    return start_index, end_index
+
+
+def _replace_addons_block(lines, addons_with_paths):
+    """
+    Returns a new line list with the addons block replaced by the given
+    entries, or None when the block markers are missing.
+    """
+    markers = _find_markers(lines)
+    if markers is None:
+        return None
+    start_index, end_index = markers
+
+    insert_lines = []
+    for entry in addons_with_paths:
+        insert_lines.extend(_block_lines(entry))
+
+    return lines[:start_index + 1] + insert_lines + lines[end_index:]
+
+
+def rewrite_addons_block_if_changed(gameinfo_path, addons_with_paths):
+    """
+    Rewrites the addons block only when the stored text differs from what
+    the given entries produce, so a file that is already in sync is not
+    touched at all.
+    Used to bring gameinfo.txt in line with the list the user sees: a map
+    stored as a .vpk, or one carrying the legacy MAP prefix, is fixed on the
+    next refresh instead of waiting for the next mount.
+    Returns tuple (rewritten, message)
+    """
+    try:
+        if addon_manager.validate_addon_markers(gameinfo_path) != "ok":
+            return False, tr("Addons block markers corrupted.")
+
+        with open(gameinfo_path, 'r', encoding='utf-8') as file:
+            lines = file.readlines()
+
+        new_lines = _replace_addons_block(lines, addons_with_paths)
+        if new_lines is None:
+            return False, tr("Failed to find addons block markers.")
+
+        if new_lines == lines:
+            return False, tr("Addons block already up to date")
+
+        markers = _find_markers(lines)
+        start_index, end_index = markers
+        stored_entries = sum(1 for line in lines[start_index + 1:end_index]
+                             if 'game+mod' in line)
+        if stored_entries != len(addons_with_paths):
+            # Something in the block was not parsed as an addon, a hand
+            # written entry without a title comment for instance. Rebuilding
+            # the block would drop it, so the file is left untouched.
+            log.warning(tr("gameinfo.txt addons block was not rewritten: {} entries stored, {} addons parsed").format(
+                stored_entries, len(addons_with_paths)))
+            return False, tr("Addons block left unchanged")
+
+        with open(gameinfo_path, 'w', encoding='utf-8') as file:
+            file.writelines(new_lines)
+
+        log.info(tr("gameinfo.txt addons block updated to match the list"))
+        return True, tr("Addons block updated")
+
+    except Exception as e:
+        log.error(f"Error rewriting addons block: {str(e)}")
+        return False, f"Error rewriting addons block: {str(e)}"
+
+
 def update_gameinfo(gameinfo_path, addons_with_paths):
     """
     Adds addon paths to gameinfo.txt file between markers
+    addons_with_paths: list of dicts with 'path', 'title', 'is_map'
     Returns tuple (success, message)
     """
     try:
@@ -49,31 +155,28 @@ def update_gameinfo(gameinfo_path, addons_with_paths):
         all_addons_with_paths = []
         
         # Add new addons from collection
-        for vpk_path, title in addons_with_paths:
+        for entry in addons_with_paths:
+            vpk_path = entry['path']
             # Extract ID from path to search in existing addons
             addon_id = addon_manager.extract_addon_id(vpk_path)
             
-            # If this addon already exists, use its data, otherwise add new
+            # If this addon already exists, use its stored data (including
+            # is_map), otherwise add the new entry
             if addon_id in existing_addons_by_id:
-                existing_addon = existing_addons_by_id[addon_id]
-                all_addons_with_paths.append((existing_addon['path'], existing_addon['title']))
+                all_addons_with_paths.append(existing_addons_by_id[addon_id])
                 # Remove from dictionary to avoid duplicate addition
                 del existing_addons_by_id[addon_id]
             else:
-                all_addons_with_paths.append((vpk_path, title))
+                all_addons_with_paths.append(entry)
         
         # Add remaining existing addons (which were not in collection)
         for addon_id, addon in existing_addons_by_id.items():
-            all_addons_with_paths.append((addon['path'], addon['title']))
+            all_addons_with_paths.append(addon)
         
         # Create lines to insert between markers
         insert_lines = []
-        for vpk_path, title in all_addons_with_paths:
-            # Normalize path to use forward slashes consistently
-            normalized_path = vpk_path.replace('\\', '/')
-            insert_lines.append(f'\t\t// {title}\n')
-            insert_lines.append(f'\t\tgame+mod\t\t"{normalized_path}"\n')
-            insert_lines.append('\n')
+        for entry in all_addons_with_paths:
+            insert_lines.extend(_block_lines(entry))
         
         # Replace content between markers
         new_lines = lines[:start_index + 1] + insert_lines + lines[end_index:]
@@ -92,6 +195,7 @@ def update_gameinfo(gameinfo_path, addons_with_paths):
 def update_gameinfo_order(gameinfo_path, addons_with_paths):
     """
     Updates addons order in gameinfo.txt between markers
+    addons_with_paths: list of dicts with 'path', 'title', 'is_map'
     Returns tuple (success, message)
     """
     try:
@@ -103,31 +207,11 @@ def update_gameinfo_order(gameinfo_path, addons_with_paths):
         
         with open(gameinfo_path, 'r', encoding='utf-8') as file:
             lines = file.readlines()
-        
-        # Find marker positions
-        start_index = -1
-        end_index = -1
-        
-        for i, line in enumerate(lines):
-            if "//mounted_addons_start" in line:
-                start_index = i
-            if "//mounted_addons_end" in line:
-                end_index = i
-        
-        if start_index == -1 or end_index == -1:
-            return False, tr("Failed to find addons block markers.")
-        
-        # Create lines to insert between markers
-        insert_lines = []
-        for vpk_path, title in addons_with_paths:
-            # Normalize path to use forward slashes consistently
-            normalized_path = vpk_path.replace('\\', '/')
-            insert_lines.append(f'\t\t// {title}\n')
-            insert_lines.append(f'\t\tgame+mod\t\t"{normalized_path}"\n')
-            insert_lines.append('\n')
-        
+
         # Replace content between markers
-        new_lines = lines[:start_index + 1] + insert_lines + lines[end_index:]
+        new_lines = _replace_addons_block(lines, addons_with_paths)
+        if new_lines is None:
+            return False, tr("Failed to find addons block markers.")
         
         # Write modified file
         with open(gameinfo_path, 'w', encoding='utf-8') as file:

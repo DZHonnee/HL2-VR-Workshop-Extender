@@ -4,7 +4,7 @@
 <br><br>This procedure changes game content paths in gameinfo.txt files and replaces some map and shader files for their correct operation.
 </p>
 
-<h2>Reverting to original version</h2>
+<h2>Reverting to original version (will remove your addon list)</h2>
 <ol>
     <li>Go to the <b>Half-Life 2 VR/hlvr</b> folder</li>
     <li>Delete the <b>maps</b> folder</li>
