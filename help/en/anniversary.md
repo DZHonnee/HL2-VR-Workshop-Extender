@@ -1,7 +1,7 @@
 # Anniversary Update
 
 <p>Installing Anniversary Update will mount all enhancements from the latest Half-Life 2 version into VR Mod and Episodes.
-<br><br>This procedure changes game content paths in gameinfo.txt files and replaces some map and shader files for their correct operation.
+<br><br>This procedure changes game content paths in gameinfo.txt files and replaces some map and shader files for their correct operation. <b> Half-Life 2 must always be installed, otherwise VR Mod won't launch.</b>
 </p>
 
 <h2>Reverting to original version (will remove your addon list)</h2>
